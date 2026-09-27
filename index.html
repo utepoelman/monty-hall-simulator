@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Monty Hall Game & Probability Simulator</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        showGold: '#F59E0B',
+                        showGoldDark: '#B45309',
+                        showNeonBlue: '#3B82F6',
+                        showNeonPurple: '#8B5CF6',
+                        showBgDark: '#0F172A',
+                        showCardBg: '#1E293B',
+                        doorWoodDark: '#3F1A0A',
+                        doorWoodLight: '#854D0E'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Montserrat', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0F17;
+            color: #F3F4F6;
+            overflow-x: hidden;
+        }
+
+        .title-font {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* TV Show Stage Lights Glow */
+        .stage-glow {
+            background: radial-gradient(circle at 50% 30%, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.08) 40%, rgba(15, 23, 42, 0) 70%);
+        }
+
+        .spotlight {
+            background: radial-gradient(ellipse at top, rgba(245, 158, 11, 0.25) 0%, rgba(0, 0, 0, 0) 70%);
+        }
+
+        /* Glowing Text Effects */
+        .glow-text-gold {
+            text-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 0 24px rgba(245, 158, 11, 0.3);
+        }
+
+        .glow-text-blue {
+            text-shadow: 0 0 12px rgba(59, 130, 246, 0.6), 0 0 24px rgba(59, 130, 246, 0.3);
+        }
+
+        /* 3D Door Swing Animation Container */
+        .door-perspective {
+            perspective: 1200px;
+        }
+
+        .door-inner {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            transform-origin: left center;
+        }
+
+        .door-inner.is-open {
+            transform: rotateY(-110deg);
+        }
+
+        .door-inner.is-selected {
+            box-shadow: 0 0 25px 6px rgba(245, 158, 11, 0.7);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1E293B;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748B;
+        }
+
+        /* Pulse glow button */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.9); }
+        }
+        .btn-pulse {
+            animation: pulseGlow 2s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-black">
+
+    <!-- Top Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-amber-500/20">
+                    M
+                </div>
+                <div>
+                    <h1 class="title-font text-base sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent">
+                        THE MONTY HALL SHOW
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden lg:block">Interactive Game Show & Probability Simulator</p>
+                </div>
+            </div>
+
+            <!-- Mode Selector Pills -->
+            <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button id="mode-1p-btn" onclick="setGameMode('1P')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow">
+                    🤖 1 Player
+                </button>
+                <button id="mode-2p-btn" onclick="setGameMode('2P')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white">
+                    👥 2 Players
+                </button>
+            </div>
+
+            <!-- Top Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button id="fullscreen-btn" onclick="toggleFullscreen()" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center space-x-1.5 text-xs font-medium border border-slate-700" title="Toggle Fullscreen">
+                    <span id="fullscreen-icon">⛶</span>
+                    <span class="hidden md:inline" id="fullscreen-label">Fullscreen</span>
+                </button>
+
+                <button id="audio-toggle-btn" onclick="toggleAudio()" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center space-x-1.5 text-xs font-medium border border-slate-700" title="Toggle Sound Effects">
+                    <span id="audio-icon">🔊</span>
+                    <span class="hidden md:inline" id="audio-label">Sound On</span>
+                </button>
+
+                <button onclick="openMathModal()" class="px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold transition flex items-center space-x-1">
+                    <span>💡</span>
+                    <span class="hidden sm:inline">Why Switch Works</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 stage-glow">
+
+        <!-- Stage Host Banner / Dialogue Prompt -->
+        <section class="relative rounded-2xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-slate-700/80 p-5 sm:p-6 shadow-2xl overflow-hidden backdrop-blur">
+            <div class="spotlight absolute inset-0 pointer-events-none"></div>
+            
+            <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+                <!-- Host Mascot & Speech -->
+                <div class="flex items-center space-x-4 w-full md:w-auto">
+                    <div class="relative flex-shrink-0">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-600 to-amber-500 p-1 shadow-lg">
+                            <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-2xl sm:text-3xl">
+                                🎙️
+                            </div>
+                        </div>
+                        <span class="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
+                    </div>
+                    <div>
+                        <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold mb-1">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span id="stage-badge">STAGE 1: PICK A DOOR</span>
+                        </div>
+                        <h2 id="host-speech" class="text-base sm:text-lg lg:text-xl font-bold text-slate-100 leading-snug">
+                            Welcome contestant! Behind one door is a brand new <span class="text-amber-400">Sports Car 🚗</span>! Behind the other two are <span class="text-slate-400">Goats 🐐</span>. Pick your door!
+                        </h2>
+                    </div>
+                </div>
+
+                <!-- Round Counter Badge -->
+                <div class="flex items-center space-x-3 self-end md:self-center flex-shrink-0">
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2 text-right">
+                        <span class="text-xs uppercase text-slate-400 font-medium block">Current Round</span>
+                        <span id="round-number-display" class="title-font text-2xl font-black text-amber-400">#1</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stage Doors Display -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto py-2">
+            <!-- Door 1 -->
+            <div id="door-card-1" class="relative group cursor-pointer" onclick="handleDoorClick(1)">
+                <div class="relative bg-slate-950 rounded-2xl border-4 border-amber-800/80 p-2 shadow-2xl h-[340px] sm:h-[380px] flex flex-col justify-end overflow-hidden transition-all duration-300 hover:border-amber-500/80 hover:shadow-amber-500/10">
+                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-900 to-transparent z-0"></div>
+
+                    <div id="door-content-1" class="absolute inset-0 z-0 flex flex-col items-center justify-center p-4 text-center">
+                        <!-- SVG content dynamically inserted -->
+                    </div>
+
+                    <div id="door-panel-1" class="door-inner absolute inset-0 z-10 bg-gradient-to-br from-amber-900 via-amber-950 to-amber-950 rounded-xl border-2 border-amber-700/60 p-4 flex flex-col justify-between shadow-2xl">
+                        <div class="flex justify-between items-center">
+                            <div class="w-8 h-8 rounded-full bg-amber-800/50 border border-amber-600/40 flex items-center justify-center text-amber-200 text-xs font-bold">1</div>
+                            <div class="w-12 h-1 bg-amber-700/50 rounded-full"></div>
+                        </div>
+
+                        <div class="my-auto text-center flex flex-col items-center">
+                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-950/80 border-2 border-amber-600/60 flex items-center justify-center shadow-inner mb-2">
+                                <span class="title-font text-5xl sm:text-6xl font-black bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent">1</span>
+                            </div>
+                            <span class="text-xs font-semibold tracking-wider text-amber-400/80 uppercase">Door One</span>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-100 shadow-md border border-yellow-200 flex items-center justify-center">
+                                <div class="w-2 h-2 rounded-full bg-amber-800/50"></div>
+                            </div>
+                            <span id="door-tag-1" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-slate-950 tracking-wider">YOUR PICK</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Door 2 -->
+            <div id="door-card-2" class="relative group cursor-pointer" onclick="handleDoorClick(2)">
+                <div class="relative bg-slate-950 rounded-2xl border-4 border-amber-800/80 p-2 shadow-2xl h-[340px] sm:h-[380px] flex flex-col justify-end overflow-hidden transition-all duration-300 hover:border-amber-500/80 hover:shadow-amber-500/10">
+                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-900 to-transparent z-0"></div>
+
+                    <div id="door-content-2" class="absolute inset-0 z-0 flex flex-col items-center justify-center p-4 text-center">
+                        <!-- SVG content dynamically inserted -->
+                    </div>
+
+                    <div id="door-panel-2" class="door-inner absolute inset-0 z-10 bg-gradient-to-br from-amber-900 via-amber-950 to-amber-950 rounded-xl border-2 border-amber-700/60 p-4 flex flex-col justify-between shadow-2xl">
+                        <div class="flex justify-between items-center">
+                            <div class="w-8 h-8 rounded-full bg-amber-800/50 border border-amber-600/40 flex items-center justify-center text-amber-200 text-xs font-bold">2</div>
+                            <div class="w-12 h-1 bg-amber-700/50 rounded-full"></div>
+                        </div>
+
+                        <div class="my-auto text-center flex flex-col items-center">
+                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-950/80 border-2 border-amber-600/60 flex items-center justify-center shadow-inner mb-2">
+                                <span class="title-font text-5xl sm:text-6xl font-black bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent">2</span>
+                            </div>
+                            <span class="text-xs font-semibold tracking-wider text-amber-400/80 uppercase">Door Two</span>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-100 shadow-md border border-yellow-200 flex items-center justify-center">
+                                <div class="w-2 h-2 rounded-full bg-amber-800/50"></div>
+                            </div>
+                            <span id="door-tag-2" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-slate-950 tracking-wider">YOUR PICK</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Door 3 -->
+            <div id="door-card-3" class="relative group cursor-pointer" onclick="handleDoorClick(3)">
+                <div class="relative bg-slate-950 rounded-2xl border-4 border-amber-800/80 p-2 shadow-2xl h-[340px] sm:h-[380px] flex flex-col justify-end overflow-hidden transition-all duration-300 hover:border-amber-500/80 hover:shadow-amber-500/10">
+                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-900 to-transparent z-0"></div>
+
+                    <div id="door-content-3" class="absolute inset-0 z-0 flex flex-col items-center justify-center p-4 text-center">
+                        <!-- SVG content dynamically inserted -->
+                    </div>
+
+                    <div id="door-panel-3" class="door-inner absolute inset-0 z-10 bg-gradient-to-br from-amber-900 via-amber-950 to-amber-950 rounded-xl border-2 border-amber-700/60 p-4 flex flex-col justify-between shadow-2xl">
+                        <div class="flex justify-between items-center">
+                            <div class="w-8 h-8 rounded-full bg-amber-800/50 border border-amber-600/40 flex items-center justify-center text-amber-200 text-xs font-bold">3</div>
+                            <div class="w-12 h-1 bg-amber-700/50 rounded-full"></div>
+                        </div>
+
+                        <div class="my-auto text-center flex flex-col items-center">
+                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-950/80 border-2 border-amber-600/60 flex items-center justify-center shadow-inner mb-2">
+                                <span class="title-font text-5xl sm:text-6xl font-black bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent">3</span>
+                            </div>
+                            <span class="text-xs font-semibold tracking-wider text-amber-400/80 uppercase">Door Three</span>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-100 shadow-md border border-yellow-200 flex items-center justify-center">
+                                <div class="w-2 h-2 rounded-full bg-amber-800/50"></div>
+                            </div>
+                            <span id="door-tag-3" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-slate-950 tracking-wider">YOUR PICK</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stage Action Controls Panel -->
+        <section id="action-controls-panel" class="max-w-2xl mx-auto text-center py-2">
+            <!-- Stage 1 Hint -->
+            <div id="stage-1-controls" class="text-slate-400 text-sm font-medium animate-pulse">
+                👇 Click on any closed door above to make your initial selection.
+            </div>
+
+            <!-- Stage 2 Stick / Switch Choice Buttons -->
+            <div id="stage-2-controls" class="hidden flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button id="stick-btn" onclick="executeDecision('STICK')" class="w-full sm:w-1/2 py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-lg shadow-xl shadow-blue-500/20 transform transition hover:-translate-y-0.5 active:translate-y-0 border border-blue-400/30">
+                    🔒 STICK WITH DOOR <span id="stick-door-num">1</span>
+                </button>
+                <button id="switch-btn" onclick="executeDecision('SWITCH')" class="w-full sm:w-1/2 py-4 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-lg shadow-xl shadow-emerald-500/20 transform transition hover:-translate-y-0.5 active:translate-y-0 border border-emerald-400/30 btn-pulse">
+                    🔄 SWITCH TO DOOR <span id="switch-door-num">2</span>
+                </button>
+            </div>
+
+            <!-- Stage 3 Play Again Button -->
+            <div id="stage-3-controls" class="hidden flex flex-col items-center space-y-3">
+                <button onclick="startNewRound()" class="py-4 px-8 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xl shadow-2xl shadow-amber-500/30 transform transition hover:-translate-y-0.5 active:translate-y-0 border border-yellow-200">
+                    🎮 PLAY NEXT ROUND
+                </button>
+            </div>
+        </section>
+
+        <!-- Statistics & Simulator Drawer Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Dashboard Card 1: Key Metrics -->
+            <div class="lg:col-span-1 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4">
+                <div>
+                    <h3 class="title-font text-base font-bold text-amber-400 flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span>📊 LIVE STATISTICS</span>
+                        <span id="total-rounds-counter" class="text-xs text-slate-400 font-sans font-normal">0 Rounds Played</span>
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <!-- Stick Win Rate -->
+                        <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800/80">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Stick Strategy</span>
+                            <div id="stick-win-pct" class="title-font text-2xl font-extrabold text-blue-400">0.0%</div>
+                            <div id="stick-wins-count" class="text-xs text-slate-500 mt-0.5">0 / 0 Wins</div>
+                            <div class="text-[10px] text-slate-500 mt-2 border-t border-slate-900 pt-1">Theory: 33.3%</div>
+                        </div>
+
+                        <!-- Switch Win Rate -->
+                        <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800/80">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Switch Strategy</span>
+                            <div id="switch-win-pct" class="title-font text-2xl font-extrabold text-emerald-400">0.0%</div>
+                            <div id="switch-wins-count" class="text-xs text-slate-500 mt-0.5">0 / 0 Wins</div>
+                            <div class="text-[10px] text-slate-500 mt-2 border-t border-slate-900 pt-1">Theory: 66.7%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fast Simulator Batch Tool -->
+                <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-800">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center justify-between">
+                        <span>🚀 Fast Automated Simulator</span>
+                    </h4>
+                    <p class="text-xs text-slate-400 mb-3">Instantly simulate rounds to prove the theoretical law of large numbers!</p>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-300 font-medium">Simulate Rounds:</span>
+                            <div class="flex space-x-1">
+                                <button onclick="runBatchSimulation(10)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700">10</button>
+                                <button onclick="runBatchSimulation(50)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700">50</button>
+                                <button onclick="runBatchSimulation(100)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700">100</button>
+                                <button onclick="runBatchSimulation(500)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700">500</button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2">
+                            <select id="sim-strategy" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg p-2 w-full focus:ring-amber-500 focus:border-amber-500">
+                                <option value="ALWAYS_SWITCH">Strategy: Always Switch (66.7%)</option>
+                                <option value="ALWAYS_STICK">Strategy: Always Stick (33.3%)</option>
+                                <option value="RANDOM">Strategy: Random 50 / 50</option>
+                            </select>
+                            <button onclick="runSelectedBatch()" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex-shrink-0 transition">
+                                RUN
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Card 2: Interactive Dynamic Bar Graph -->
+            <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-4">
+                    <h3 class="title-font text-base font-bold text-amber-400">📈 EXPERIMENTAL VS THEORETICAL WIN RATES</h3>
+                    <button onclick="confirmResetData()" class="text-xs text-rose-400 hover:text-rose-300 font-medium">Reset Data</button>
+                </div>
+
+                <!-- Custom HTML5 Canvas Chart -->
+                <div class="relative w-full h-56 bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex items-center justify-center">
+                    <canvas id="statsChart" class="w-full h-full"></canvas>
+                </div>
+
+                <!-- Chart Legend & Helper -->
+                <div class="flex flex-wrap items-center justify-between text-xs text-slate-400 mt-4 px-1 gap-2">
+                    <div class="flex items-center space-x-4">
+                        <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> <span>Stick Wins</span></span>
+                        <span class="flex items-center space-x-1.5"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> <span>Switch Wins</span></span>
+                        <span class="flex items-center space-x-1.5"><span class="w-3 h-0.5 bg-dashed border-t-2 border-dashed border-amber-400 inline-block"></span> <span>Theoretical Baseline</span></span>
+                    </div>
+                    <span class="text-slate-500 italic">Updates automatically after every round</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Round History Log Table & Export Section -->
+        <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-4">
+                <div>
+                    <h3 class="title-font text-base font-bold text-slate-200">📋 ROUND HISTORY LOG</h3>
+                    <p class="text-xs text-slate-400">Complete record of choices, host reveals, and outcomes.</p>
+                </div>
+                
+                <button onclick="downloadCSVData()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold transition flex items-center space-x-2">
+                    <span>📥 Download CSV Data</span>
+                </button>
+            </div>
+
+            <!-- Scrollable Log Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-64">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] sticky top-0 border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Round #</th>
+                            <th class="px-4 py-3">Mode</th>
+                            <th class="px-4 py-3">Initial Pick</th>
+                            <th class="px-4 py-3">Host Opened</th>
+                            <th class="px-4 py-3">Strategy</th>
+                            <th class="px-4 py-3">Final Pick</th>
+                            <th class="px-4 py-3">Car Location</th>
+                            <th class="px-4 py-3">Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body" class="divide-y divide-slate-800/60 font-medium">
+                        <tr id="empty-history-row">
+                            <td colspan="8" class="px-4 py-8 text-center text-slate-500 italic">
+                                No games played yet. Pick a door above or run a batch simulation!
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            The Monty Hall Game & Simulator — Built for probability education and interactive fun.
+        </div>
+    </footer>
+
+    <!-- Canvas Confetti Generator Canvas -->
+    <canvas id="confetti-canvas" class="pointer-events-none fixed inset-0 z-50 w-full h-full"></canvas>
+
+    <!-- Modal: Pass Device to Contestant (Two-Player Mode) -->
+    <div id="p2-pass-modal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
+            <div class="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mx-auto border border-amber-500/30">
+                🔒
+            </div>
+            <h3 class="title-font text-xl font-extrabold text-amber-400">CAR HIDDEN SUCCESSFULLY!</h3>
+            <p class="text-sm text-slate-300">
+                The Sports Car has been hidden behind <strong id="p2-secret-door-num" class="text-amber-400">Door X</strong>.
+            </p>
+            <p class="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                🙈 Hand or pass the screen over to the <strong>Contestant</strong> now!
+            </p>
+            <button onclick="closeP2PassModal()" class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm shadow-xl transition">
+                🧍 I'm Ready! (Contestant Turn)
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal: Educational Mathematical Explanation -->
+    <div id="math-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeMathModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold">✕</button>
+            
+            <h3 class="title-font text-xl font-extrabold text-amber-400 flex items-center space-x-2">
+                <span>💡</span> <span>Why Switching Doubles Your Odds</span>
+            </h3>
+
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                <p>
+                    The <strong>Monty Hall Problem</strong> is a famous counter-intuitive probability puzzle based on the American television game show <em>Let's Make a Deal</em>.
+                </p>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-amber-300">1. Your Initial Pick (1/3 Chance)</h4>
+                    <p class="text-slate-400">When you first pick a door, there is a <strong>1 in 3 (33.3%)</strong> chance you picked the car, and a <strong>2 in 3 (66.7%)</strong> chance the car is behind one of the other two doors.</p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-amber-300">2. The Host's Revealed Door</h4>
+                    <p class="text-slate-400">The host (Monty Hall) <em>knows</em> what is behind every door. He must always open an unselected door that contains a Goat. He never opens the car!</p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-amber-300">3. The Magic of Switching (2/3 Chance)</h4>
+                    <p class="text-slate-400">Because the host filtered out a Goat, the 66.7% probability that the car was in the "other group" now concentrates entirely onto the single remaining unopened door! Switching converts every initial loss into a win.</p>
+                </div>
+            </div>
+
+            <div class="pt-2 text-right">
+                <button onclick="closeMathModal()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">
+                    Got it, let me play!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmation Reset -->
+    <div id="reset-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-center">
+            <h3 class="title-font text-lg font-bold text-slate-100">Reset All Recorded Statistics?</h3>
+            <p class="text-xs text-slate-400">This will clear all round logs, chart data, and win counters. This action cannot be undone.</p>
+            <div class="flex justify-center space-x-3 pt-2">
+                <button onclick="closeResetModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">Cancel</button>
+                <button onclick="resetAllData()" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">Yes, Reset Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ====================================================================
+           MONTY HALL GAME ENGINE & SIMULATOR SCRIPT
+           ==================================================================== */
+
+        // SVG Vector Art Templates
+        const SVG_GOAT = `
+            <svg class="w-28 h-28 sm:w-36 sm:h-36 drop-shadow-2xl animate-bounce" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M70 70C50 40 30 50 25 35C20 20 40 20 60 45" stroke="#D97706" stroke-width="8" stroke-linecap="round" fill="none"/>
+                <path d="M130 70C150 40 170 50 175 35C180 20 160 20 140 45" stroke="#D97706" stroke-width="8" stroke-linecap="round" fill="none"/>
+                <ellipse cx="45" cy="85" rx="20" ry="8" transform="rotate(-20 45 85)" fill="#9CA3AF"/>
+                <ellipse cx="155" cy="85" rx="20" ry="8" transform="rotate(20 155 85)" fill="#9CA3AF"/>
+                <path d="M60 80C60 65 80 60 100 60C120 60 140 65 140 80C140 120 130 150 100 150C70 150 60 120 60 80Z" fill="#E5E7EB"/>
+                <ellipse cx="100" cy="130" rx="25" ry="15" fill="#D1D5DB"/>
+                <circle cx="92" cy="128" r="3" fill="#374151"/>
+                <circle cx="108" cy="128" r="3" fill="#374151"/>
+                <circle cx="80" cy="90" r="7" fill="#111827"/>
+                <circle cx="120" cy="90" r="7" fill="#111827"/>
+                <circle cx="78" cy="88" r="2.5" fill="#FFFFFF"/>
+                <circle cx="118" cy="88" r="2.5" fill="#FFFFFF"/>
+                <path d="M90 150L100 175L110 150Z" fill="#F3F4F6"/>
+                <rect x="75" y="142" width="50" height="8" rx="4" fill="#EF4444"/>
+                <circle cx="100" cy="154" r="6" fill="#F59E0B"/>
+            </svg>
+            <span class="text-xs font-black uppercase tracking-widest text-slate-400 mt-2">GOAT 🐐</span>
+        `;
+
+        const SVG_CAR = `
+            <svg class="w-32 h-32 sm:w-40 sm:h-40 drop-shadow-2xl" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="100" cy="155" rx="80" ry="12" fill="rgba(0,0,0,0.4)"/>
+                <path d="M25 130C25 120 35 115 50 115L65 95C75 80 95 75 125 75L155 90C170 95 180 105 180 120V135C180 142 175 145 168 145H32C25 145 25 138 25 130Z" fill="#DC2626"/>
+                <path d="M70 95L82 82C88 76 98 74 120 74L148 88L160 98H70Z" fill="#991B1B"/>
+                <path d="M76 93L85 83C89 79 98 77 115 77H122L118 93H76Z" fill="#60A5FA" opacity="0.8"/>
+                <path d="M124 93L127 77H143L152 93H124Z" fill="#93C5FD" opacity="0.8"/>
+                <circle cx="175" cy="120" r="6" fill="#FEF08A"/>
+                <path d="M30 118H175V124H30V118Z" fill="#FFFFFF" opacity="0.3"/>
+                <circle cx="60" cy="142" r="18" fill="#18181B"/>
+                <circle cx="60" cy="142" r="10" fill="#9CA3AF"/>
+                <circle cx="60" cy="142" r="4" fill="#374151"/>
+                <circle cx="145" cy="142" r="18" fill="#18181B"/>
+                <circle cx="145" cy="142" r="10" fill="#9CA3AF"/>
+                <circle cx="145" cy="142" r="4" fill="#374151"/>
+            </svg>
+            <span class="text-xs font-black uppercase tracking-widest text-amber-400 mt-1">SPORTS CAR 🚗</span>
+        `;
+
+        // Sound Audio Synthesizer (Web Audio API)
+        let audioEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+        }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            try {
+                const now = audioCtx.currentTime;
+                
+                if (type === 'click') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } 
+                else if (type === 'open') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(440, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+                else if (type === 'win') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.5);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.5);
+                    });
+                }
+                else if (type === 'lose') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.linearRampToValueAtTime(140, now + 0.4);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                }
+            } catch(e) {
+                console.error("Audio playback error:", e);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('audio-icon').textContent = audioEnabled ? '🔊' : '🔇';
+            document.getElementById('audio-label').textContent = audioEnabled ? 'Sound On' : 'Muted';
+        }
+
+        /* Fullscreen API Controller */
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) {
+                    docEl.requestFullscreen();
+                } else if (docEl.webkitRequestFullscreen) {
+                    docEl.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        }
+
+        function updateFullscreenBtn() {
+            const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            const icon = document.getElementById('fullscreen-icon');
+            const label = document.getElementById('fullscreen-label');
+            if (icon) icon.textContent = isFS ? '↙' : '⛶';
+            if (label) label.textContent = isFS ? 'Exit Fullscreen' : 'Fullscreen';
+        }
+
+        document.addEventListener('fullscreenchange', updateFullscreenBtn);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+
+        /* ====================================================================
+           GAME STATE ENGINE
+           ==================================================================== */
+        let gameState = {
+            gameMode: '1P', // '1P' or '2P'
+            roundNumber: 1,
+            stage: 1, // 1P stages: 1: Pick Door, 2: Switch Choice, 3: Outcome
+            p2Stage: 'HOST_CAR_SELECT', // 2P stages: 'HOST_CAR_SELECT', 'CONTESTANT_PICK', 'HOST_OPEN_DOOR', 'CONTESTANT_DECISION', 'RESULT'
+            carDoor: null,
+            initialPick: null,
+            hostDoor: null,
+            switchDoor: null,
+            finalPick: null,
+            finalAction: null, // 'STICK' or 'SWITCH'
+            history: []
+        };
+
+        // Initialize Game on Load
+        window.onload = function() {
+            startNewRound();
+            initChart();
+            renderStats();
+        };
+
+        function setGameMode(mode) {
+            if (gameState.gameMode === mode) return;
+            gameState.gameMode = mode;
+
+            const btn1p = document.getElementById('mode-1p-btn');
+            const btn2p = document.getElementById('mode-2p-btn');
+
+            if (mode === '1P') {
+                btn1p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow';
+                btn2p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white';
+            } else {
+                btn2p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow';
+                btn1p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white';
+            }
+
+            startNewRound();
+        }
+
+        function startNewRound() {
+            gameState.stage = 1;
+            gameState.initialPick = null;
+            gameState.hostDoor = null;
+            gameState.switchDoor = null;
+            gameState.finalPick = null;
+            gameState.finalAction = null;
+
+            document.getElementById('round-number-display').textContent = `#${gameState.roundNumber}`;
+
+            // Reset Door Graphics & Animations instantly
+            for (let i = 1; i <= 3; i++) {
+                const panel = document.getElementById(`door-panel-${i}`);
+                const card = document.getElementById(`door-card-${i}`);
+                const tag = document.getElementById(`door-tag-${i}`);
+                const content = document.getElementById(`door-content-${i}`);
+
+                panel.style.transition = 'none';
+                panel.classList.remove('is-open', 'is-selected');
+                card.classList.remove('pointer-events-none', 'opacity-80');
+                tag.classList.add('hidden');
+                content.innerHTML = '';
+            }
+
+            void document.body.offsetHeight; // Force reflow
+
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`door-panel-${i}`).style.transition = '';
+            }
+
+            // Game Mode Initialization
+            if (gameState.gameMode === '1P') {
+                gameState.carDoor = Math.floor(Math.random() * 3) + 1;
+                document.getElementById('stage-badge').textContent = 'STAGE 1: PICK A DOOR';
+                document.getElementById('host-speech').innerHTML = `
+                    Welcome contestant! Behind one door is a brand new <span class="text-amber-400">Sports Car 🚗</span>! Behind the other two are <span class="text-slate-400">Goats 🐐</span>. Pick your door!
+                `;
+                document.getElementById('stage-1-controls').innerHTML = '👇 Click on any closed door above to make your initial selection.';
+            } else {
+                // 2-Player Mode Initialization
+                gameState.carDoor = null;
+                gameState.p2Stage = 'HOST_CAR_SELECT';
+                document.getElementById('stage-badge').textContent = 'HOST TURN: HIDE THE CAR';
+                document.getElementById('host-speech').innerHTML = `
+                    🎙️ <strong>Host's Turn:</strong> Secretly click which door hides the <span class="text-amber-400">Sports Car 🚗</span>! (Contestant, look away!)
+                `;
+                document.getElementById('stage-1-controls').innerHTML = '👇 Host: Select a door to hide the car behind.';
+            }
+
+            // Controls Visibility
+            document.getElementById('stage-1-controls').classList.remove('hidden');
+            document.getElementById('stage-2-controls').classList.add('hidden');
+            document.getElementById('stage-3-controls').classList.add('hidden');
+        }
+
+        function handleDoorClick(doorNumber) {
+            if (gameState.gameMode === '1P') {
+                if (gameState.stage === 1) {
+                    selectInitialDoor(doorNumber);
+                } else if (gameState.stage === 2) {
+                    if (doorNumber === gameState.initialPick) {
+                        executeDecision('STICK');
+                    } else if (doorNumber === gameState.switchDoor) {
+                        executeDecision('SWITCH');
+                    }
+                }
+            } else {
+                // Two-Player Mode Handler
+                if (gameState.p2Stage === 'HOST_CAR_SELECT') {
+                    selectHostCar(doorNumber);
+                } else if (gameState.p2Stage === 'CONTESTANT_PICK') {
+                    selectContestantInitial(doorNumber);
+                } else if (gameState.p2Stage === 'HOST_OPEN_DOOR') {
+                    selectHostOpenDoor(doorNumber);
+                } else if (gameState.p2Stage === 'CONTESTANT_DECISION') {
+                    if (doorNumber === gameState.initialPick) {
+                        executeDecision('STICK');
+                    } else if (doorNumber === gameState.switchDoor) {
+                        executeDecision('SWITCH');
+                    }
+                }
+            }
+        }
+
+        /* 1-Player Engine Functions */
+        function selectInitialDoor(doorNumber) {
+            playSound('click');
+            gameState.initialPick = doorNumber;
+            gameState.stage = 2;
+
+            document.getElementById(`door-panel-${doorNumber}`).classList.add('is-selected');
+            document.getElementById(`door-tag-${doorNumber}`).classList.remove('hidden');
+
+            const availableGoatDoors = [1, 2, 3].filter(d => d !== gameState.initialPick && d !== gameState.carDoor);
+            gameState.hostDoor = availableGoatDoors[Math.floor(Math.random() * availableGoatDoors.length)];
+            gameState.switchDoor = [1, 2, 3].find(d => d !== gameState.initialPick && d !== gameState.hostDoor);
+
+            setTimeout(() => {
+                playSound('open');
+                document.getElementById(`door-content-${gameState.hostDoor}`).innerHTML = SVG_GOAT;
+                document.getElementById(`door-panel-${gameState.hostDoor}`).classList.add('is-open');
+                document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-80');
+            }, 300);
+
+            document.getElementById('stage-badge').textContent = 'STAGE 2: STICK OR SWITCH';
+            document.getElementById('host-speech').innerHTML = `
+                I've opened <span class="text-amber-400">Door ${gameState.hostDoor}</span> showing a <span class="text-slate-400">Goat 🐐</span>! 
+                Do you want to <span class="text-blue-400">STICK</span> with Door ${gameState.initialPick}, or <span class="text-emerald-400">SWITCH</span> to Door ${gameState.switchDoor}?
+            `;
+
+            document.getElementById('stick-door-num').textContent = gameState.initialPick;
+            document.getElementById('switch-door-num').textContent = gameState.switchDoor;
+
+            document.getElementById('stage-1-controls').classList.add('hidden');
+            document.getElementById('stage-2-controls').classList.remove('hidden');
+        }
+
+        /* 2-Player Engine Functions */
+        function selectHostCar(doorNumber) {
+            playSound('click');
+            gameState.carDoor = doorNumber;
+            
+            // Display device transfer modal for host privacy
+            document.getElementById('p2-secret-door-num').textContent = `Door ${doorNumber}`;
+            document.getElementById('p2-pass-modal').classList.remove('hidden');
+        }
+
+        function closeP2PassModal() {
+            document.getElementById('p2-pass-modal').classList.add('hidden');
+            gameState.p2Stage = 'CONTESTANT_PICK';
+
+            document.getElementById('stage-badge').textContent = 'CONTESTANT: PICK A DOOR';
+            document.getElementById('host-speech').innerHTML = `
+                🧍 <strong>Contestant's Turn:</strong> Behind one door is a brand new <span class="text-amber-400">Sports Car 🚗</span>! Behind the other two are <span class="text-slate-400">Goats 🐐</span>. Pick your initial door!
+            `;
+            document.getElementById('stage-1-controls').innerHTML = '👇 Contestant: Click any door to make your initial pick.';
+        }
+
+        function selectContestantInitial(doorNumber) {
+            playSound('click');
+            gameState.initialPick = doorNumber;
+            gameState.p2Stage = 'HOST_OPEN_DOOR';
+
+            document.getElementById(`door-panel-${doorNumber}`).classList.add('is-selected');
+            document.getElementById(`door-tag-${doorNumber}`).classList.remove('hidden');
+
+            document.getElementById('stage-badge').textContent = 'HOST TURN: REVEAL A GOAT';
+            document.getElementById('host-speech').innerHTML = `
+                🎙️ <strong>Host's Turn:</strong> Select an unopened door containing a <span class="text-slate-400">Goat 🐐</span> to reveal to the Contestant! (You cannot select Door ${doorNumber}).
+            `;
+            document.getElementById('stage-1-controls').innerHTML = '👇 Host: Click a valid Goat door to open it.';
+        }
+
+        function selectHostOpenDoor(doorNumber) {
+            if (doorNumber === gameState.initialPick) {
+                alert(`⚠️ Host Rules: You cannot open Door ${doorNumber} because the contestant picked it!`);
+                return;
+            }
+            if (doorNumber === gameState.carDoor) {
+                alert(`⚠️ Host Rules: You cannot open Door ${doorNumber} because it hides the Sports Car!`);
+                return;
+            }
+
+            playSound('open');
+            gameState.hostDoor = doorNumber;
+            gameState.switchDoor = [1, 2, 3].find(d => d !== gameState.initialPick && d !== gameState.hostDoor);
+            gameState.p2Stage = 'CONTESTANT_DECISION';
+
+            document.getElementById(`door-content-${gameState.hostDoor}`).innerHTML = SVG_GOAT;
+            document.getElementById(`door-panel-${gameState.hostDoor}`).classList.add('is-open');
+            document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-80');
+
+            document.getElementById('stage-badge').textContent = 'CONTESTANT: STICK OR SWITCH';
+            document.getElementById('host-speech').innerHTML = `
+                🧍 <strong>Contestant's Turn:</strong> Door ${gameState.hostDoor} was opened showing a <span class="text-slate-400">Goat 🐐</span>! 
+                Do you want to <span class="text-blue-400">STICK</span> with Door ${gameState.initialPick}, or <span class="text-emerald-400">SWITCH</span> to Door ${gameState.switchDoor}?
+            `;
+
+            document.getElementById('stick-door-num').textContent = gameState.initialPick;
+            document.getElementById('switch-door-num').textContent = gameState.switchDoor;
+
+            document.getElementById('stage-1-controls').classList.add('hidden');
+            document.getElementById('stage-2-controls').classList.remove('hidden');
+        }
+
+        /* Final Resolution Function */
+        function executeDecision(action) {
+            playSound('click');
+            gameState.stage = 3;
+            gameState.p2Stage = 'RESULT';
+            gameState.finalAction = action;
+            gameState.finalPick = (action === 'STICK') ? gameState.initialPick : gameState.switchDoor;
+
+            const isWin = (gameState.finalPick === gameState.carDoor);
+
+            // Set up hidden content behind all doors
+            for (let i = 1; i <= 3; i++) {
+                const content = document.getElementById(`door-content-${i}`);
+                content.innerHTML = (i === gameState.carDoor) ? SVG_CAR : SVG_GOAT;
+            }
+
+            // Update door tags and selection borders to reflect the contestant's final pick
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`door-tag-${i}`).classList.add('hidden');
+                document.getElementById(`door-panel-${i}`).classList.remove('is-selected');
+            }
+            document.getElementById(`door-tag-${gameState.finalPick}`).classList.remove('hidden');
+            document.getElementById(`door-panel-${gameState.finalPick}`).classList.add('is-selected');
+
+            // ONLY open the contestant's final chosen door
+            document.getElementById(`door-panel-${gameState.finalPick}`).classList.add('is-open');
+
+            if (isWin) {
+                playSound('win');
+                triggerConfetti();
+                document.getElementById('stage-badge').textContent = 'STAGE 3: YOU WON A CAR! 🚗';
+                document.getElementById('host-speech').innerHTML = `
+                    🎉 <span class="glow-text-gold text-amber-400">CONGRATULATIONS!</span> You ${action === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${gameState.finalPick} and revealed the <span class="text-amber-300">Brand New Sports Car</span>!
+                `;
+            } else {
+                playSound('lose');
+                document.getElementById('stage-badge').textContent = 'STAGE 3: YOU GOT A GOAT 🐐';
+                document.getElementById('host-speech').innerHTML = `
+                    🐐 <span class="text-rose-400">BLEAT!</span> You ${action === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${gameState.finalPick} and revealed a Goat! The Car was hidden behind <span class="text-amber-400">Door ${gameState.carDoor}</span>.
+                `;
+            }
+
+            const roundLog = {
+                round: gameState.roundNumber,
+                mode: gameState.gameMode,
+                initialPick: `Door ${gameState.initialPick}`,
+                hostOpened: `Door ${gameState.hostDoor}`,
+                action: gameState.finalAction,
+                finalPick: `Door ${gameState.finalPick}`,
+                carDoor: `Door ${gameState.carDoor}`,
+                outcome: isWin ? 'WIN (Car)' : 'LOSS (Goat)',
+                isWin: isWin
+            };
+
+            gameState.history.unshift(roundLog);
+            gameState.roundNumber++;
+
+            document.getElementById('stage-2-controls').classList.add('hidden');
+            document.getElementById('stage-3-controls').classList.remove('hidden');
+
+            renderHistoryTable();
+            renderStats();
+            updateChart();
+        }
+
+        /* ====================================================================
+           AUTOMATED BATCH SIMULATOR
+           ==================================================================== */
+        function runSelectedBatch() {
+            const strategy = document.getElementById('sim-strategy').value;
+            runBatchSimulation(100, strategy);
+        }
+
+        function runBatchSimulation(count, customStrategy = null) {
+            playSound('open');
+            const defaultStrategy = customStrategy || document.getElementById('sim-strategy').value;
+
+            for (let i = 0; i < count; i++) {
+                const carDoor = Math.floor(Math.random() * 3) + 1;
+                const initialPick = Math.floor(Math.random() * 3) + 1;
+
+                const goatDoors = [1, 2, 3].filter(d => d !== initialPick && d !== carDoor);
+                const hostDoor = goatDoors[Math.floor(Math.random() * goatDoors.length)];
+                const switchDoor = [1, 2, 3].find(d => d !== initialPick && d !== hostDoor);
+
+                let action = 'SWITCH';
+                if (defaultStrategy === 'ALWAYS_STICK') {
+                    action = 'STICK';
+                } else if (defaultStrategy === 'ALWAYS_SWITCH') {
+                    action = 'SWITCH';
+                } else if (defaultStrategy === 'RANDOM') {
+                    action = Math.random() < 0.5 ? 'STICK' : 'SWITCH';
+                }
+
+                const finalPick = (action === 'STICK') ? initialPick : switchDoor;
+                const isWin = (finalPick === carDoor);
+
+                gameState.history.unshift({
+                    round: gameState.roundNumber,
+                    mode: 'SIM',
+                    initialPick: `Door ${initialPick}`,
+                    hostOpened: `Door ${hostDoor}`,
+                    action: action,
+                    finalPick: `Door ${finalPick}`,
+                    carDoor: `Door ${carDoor}`,
+                    outcome: isWin ? 'WIN (Car)' : 'LOSS (Goat)',
+                    isWin: isWin
+                });
+
+                gameState.roundNumber++;
+            }
+
+            startNewRound();
+            renderHistoryTable();
+            renderStats();
+            updateChart();
+        }
+
+        /* ====================================================================
+           STATISTICS & CSV EXPORT
+           ==================================================================== */
+        function renderStats() {
+            const total = gameState.history.length;
+            const stickGames = gameState.history.filter(h => h.action === 'STICK');
+            const switchGames = gameState.history.filter(h => h.action === 'SWITCH');
+
+            const stickWins = stickGames.filter(h => h.isWin).length;
+            const switchWins = switchGames.filter(h => h.isWin).length;
+
+            const stickPct = stickGames.length > 0 ? ((stickWins / stickGames.length) * 100).toFixed(1) : '0.0';
+            const switchPct = switchGames.length > 0 ? ((switchWins / switchGames.length) * 100).toFixed(1) : '0.0';
+
+            document.getElementById('total-rounds-counter').textContent = `${total} Rounds Played`;
+            
+            document.getElementById('stick-win-pct').textContent = `${stickPct}%`;
+            document.getElementById('stick-wins-count').textContent = `${stickWins} / ${stickGames.length} Wins`;
+
+            document.getElementById('switch-win-pct').textContent = `${switchPct}%`;
+            document.getElementById('switch-wins-count').textContent = `${switchWins} / ${switchGames.length} Wins`;
+        }
+
+        function renderHistoryTable() {
+            const tbody = document.getElementById('history-table-body');
+            if (gameState.history.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="empty-history-row">
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-500 italic">
+                            No games played yet. Pick a door above or run a batch simulation!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const displayList = gameState.history.slice(0, 50);
+
+            tbody.innerHTML = displayList.map(h => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-4 py-2.5 font-bold text-slate-400">#${h.round}</td>
+                    <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">${h.mode || '1P'}</span></td>
+                    <td class="px-4 py-2.5">${h.initialPick}</td>
+                    <td class="px-4 py-2.5 text-slate-400">${h.hostOpened}</td>
+                    <td class="px-4 py-2.5">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${h.action === 'SWITCH' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}">
+                            ${h.action}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5">${h.finalPick}</td>
+                    <td class="px-4 py-2.5 text-amber-400">${h.carDoor}</td>
+                    <td class="px-4 py-2.5 font-bold ${h.isWin ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${h.outcome}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function downloadCSVData() {
+            if (gameState.history.length === 0) {
+                alert("No game data available to export! Play a few rounds first.");
+                return;
+            }
+
+            const headers = ["Round #", "Mode", "Initial Pick", "Host Opened Door", "Strategy Action", "Final Pick Door", "Actual Car Location", "Outcome", "Is Win"];
+            const rows = gameState.history.map(h => [
+                h.round,
+                h.mode || '1P',
+                h.initialPick,
+                h.hostOpened,
+                h.action,
+                h.finalPick,
+                h.carDoor,
+                `"${h.outcome}"`,
+                h.isWin ? 1 : 0
+            ]);
+
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `monty_hall_simulation_results.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function confirmResetData() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function resetAllData() {
+            gameState.roundNumber = 1;
+            gameState.history = [];
+            closeResetModal();
+            startNewRound();
+            renderHistoryTable();
+            renderStats();
+            updateChart();
+        }
+
+        function openMathModal() {
+            document.getElementById('math-modal').classList.remove('hidden');
+        }
+
+        function closeMathModal() {
+            document.getElementById('math-modal').classList.add('hidden');
+        }
+
+        /* ====================================================================
+           DYNAMIC HTML5 CANVAS COMPARISON CHART
+           ==================================================================== */
+        let canvas, ctx;
+
+        function initChart() {
+            canvas = document.getElementById('statsChart');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            updateChart();
+        }
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            updateChart();
+        }
+
+        function updateChart() {
+            if (!ctx || !canvas) return;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const stickGames = gameState.history.filter(h => h.action === 'STICK');
+            const switchGames = gameState.history.filter(h => h.action === 'SWITCH');
+
+            const stickWins = stickGames.filter(h => h.isWin).length;
+            const switchWins = switchGames.filter(h => h.isWin).length;
+
+            const stickPct = stickGames.length > 0 ? (stickWins / stickGames.length) * 100 : 0;
+            const switchPct = switchGames.length > 0 ? (switchWins / switchGames.length) * 100 : 0;
+
+            const padding = 40;
+            const chartBottom = h - 30;
+            const chartTop = 20;
+            const chartHeight = chartBottom - chartTop;
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = '#94A3B8';
+            ctx.font = '10px Inter, sans-serif';
+
+            for (let p = 0; p <= 100; p += 25) {
+                const y = chartBottom - (p / 100) * chartHeight;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(w - 20, y);
+                ctx.stroke();
+                ctx.fillText(`${p}%`, 8, y + 3);
+            }
+
+            const y33 = chartBottom - (33.33 / 100) * chartHeight;
+            ctx.strokeStyle = '#F59E0B';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(padding, y33);
+            ctx.lineTo(w / 2 - 10, y33);
+            ctx.stroke();
+
+            const y66 = chartBottom - (66.67 / 100) * chartHeight;
+            ctx.beginPath();
+            ctx.moveTo(w / 2 + 10, y66);
+            ctx.lineTo(w - 20, y66);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const barWidth = Math.min(80, (w - padding - 60) / 4);
+
+            const stickBarX = padding + (w - padding) * 0.25 - barWidth / 2;
+            const stickBarH = (stickPct / 100) * chartHeight;
+            const stickBarY = chartBottom - stickBarH;
+
+            const gradStick = ctx.createLinearGradient(0, stickBarY, 0, chartBottom);
+            gradStick.addColorStop(0, '#60A5FA');
+            gradStick.addColorStop(1, '#1D4ED8');
+
+            ctx.fillStyle = gradStick;
+            ctx.roundRect(stickBarX, stickBarY, barWidth, stickBarH, [6, 6, 0, 0]);
+            ctx.fill();
+
+            ctx.fillStyle = '#E2E8F0';
+            ctx.font = 'bold 12px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${stickPct.toFixed(1)}%`, stickBarX + barWidth / 2, Math.min(stickBarY - 6, chartBottom - 10));
+            ctx.fillText('STICK', stickBarX + barWidth / 2, chartBottom + 18);
+
+            const switchBarX = padding + (w - padding) * 0.75 - barWidth / 2;
+            const switchBarH = (switchPct / 100) * chartHeight;
+            const switchBarY = chartBottom - switchBarH;
+
+            const gradSwitch = ctx.createLinearGradient(0, switchBarY, 0, chartBottom);
+            gradSwitch.addColorStop(0, '#34D399');
+            gradSwitch.addColorStop(1, '#047857');
+
+            ctx.fillStyle = gradSwitch;
+            ctx.roundRect(switchBarX, switchBarY, barWidth, switchBarH, [6, 6, 0, 0]);
+            ctx.fill();
+
+            ctx.fillStyle = '#E2E8F0';
+            ctx.fillText(`${switchPct.toFixed(1)}%`, switchBarX + barWidth / 2, Math.min(switchBarY - 6, chartBottom - 10));
+            ctx.fillText('SWITCH', switchBarX + barWidth / 2, chartBottom + 18);
+        }
+
+        /* ====================================================================
+           CONFETTI ANIMATION SYSTEM
+           ==================================================================== */
+        function triggerConfetti() {
+            const confettiCanvas = document.getElementById('confetti-canvas');
+            if (!confettiCanvas) return;
+
+            const cCtx = confettiCanvas.getContext('2d');
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#F59E0B', '#10B981', '#3B82F6', '#EC4899', '#8B5CF6', '#FBBF24'];
+
+            for (let i = 0; i < 120; i++) {
+                particles.push({
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                    vx: (Math.random() - 0.5) * 18,
+                    vy: (Math.random() - 0.7) * 18,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rotation: Math.random() * 360,
+                    vRot: (Math.random() - 0.5) * 10,
+                    life: 1
+                });
+            }
+
+            function renderParticles() {
+                cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.4;
+                        p.life -= 0.015;
+                        p.rotation += p.vRot;
+
+                        cCtx.save();
+                        cCtx.translate(p.x, p.y);
+                        cCtx.rotate((p.rotation * Math.PI) / 180);
+                        cCtx.fillStyle = p.color;
+                        cCtx.globalAlpha = Math.max(0, p.life);
+                        cCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                        cCtx.restore();
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(renderParticles);
+                } else {
+                    cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+                }
+            }
+
+            renderParticles();
+        }
+    </script>
+</body>
+</html>
