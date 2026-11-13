@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
-<head>
 <!-- © Ute Poelman. All rights reserved. Terms of use: https://nugget-maths.co.nz/#terms -->
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Monty Hall Game & Probability Simulator</title>
@@ -67,23 +67,25 @@
             text-shadow: 0 0 12px rgba(59, 130, 246, 0.6), 0 0 24px rgba(59, 130, 246, 0.3);
         }
 
-        /* 3D Door Swing Animation Container */
-        .door-perspective {
-            perspective: 1200px;
+        /* Door Card Styling & Animations */
+        .door-frame-card {
+            background: radial-gradient(circle at 50% 45%, #1E293B 0%, #0F172A 75%, #090D16 100%);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         }
 
-        .door-inner {
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-style: preserve-3d;
-            transform-origin: left center;
+        .door-frame-card.is-selected {
+            border-color: #F59E0B !important;
+            box-shadow: 0 0 28px 6px rgba(245, 158, 11, 0.55);
         }
 
-        .door-inner.is-open {
-            transform: rotateY(-110deg);
+        @keyframes doorRevealPop {
+            0% { transform: scale(0.94); opacity: 0.5; }
+            60% { transform: scale(1.02); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
-        .door-inner.is-selected {
-            box-shadow: 0 0 25px 6px rgba(245, 158, 11, 0.7);
+        .door-revealed-anim {
+            animation: doorRevealPop 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
 
         /* Custom Scrollbar */
@@ -109,6 +111,111 @@
         }
         .btn-pulse {
             animation: pulseGlow 2s infinite;
+        }
+
+        /* ====================================================================
+           A4 DOUBLE-SIDED PRINT SHEET STYLES (9 CARDS: 3 SETS OF 3)
+           ==================================================================== */
+        #print-sheet-container {
+            display: none;
+        }
+
+        .a4-sheet-preview {
+            width: 210mm;
+            height: 296.5mm;
+            background: #FFFFFF;
+            padding: 13.5mm 12mm;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: repeat(3, 62mm);
+            grid-template-rows: repeat(3, 90mm);
+            gap: 0;
+        }
+
+        .print-card-cell {
+            width: 62mm;
+            height: 90mm;
+            box-sizing: border-box;
+            border: 0.35mm dashed #64748B;
+            background: radial-gradient(circle at 50% 45%, #1E293B 0%, #0F172A 80%, #090D16 100%);
+            padding: 3.5mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .print-card-inner-border {
+            position: absolute;
+            inset: 2mm;
+            border: 0.45mm solid rgba(245, 158, 11, 0.55);
+            border-radius: 2.5mm;
+            pointer-events: none;
+        }
+
+        .print-card-img {
+            width: 50mm;
+            height: 73mm;
+            object-fit: contain;
+            margin-top: 1mm;
+            z-index: 1;
+        }
+
+        .print-card-footer {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 7.5pt;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #FBBF24;
+            z-index: 1;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #FFFFFF !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body > *:not(#print-sheet-container) {
+                display: none !important;
+            }
+
+            #print-sheet-container {
+                display: block !important;
+                width: 210mm;
+                margin: 0;
+                padding: 0;
+            }
+
+            .a4-print-page {
+                width: 210mm;
+                height: 296.5mm;
+                padding: 13.5mm 12mm;
+                box-sizing: border-box;
+                display: grid;
+                grid-template-columns: repeat(3, 62mm);
+                grid-template-rows: repeat(3, 90mm);
+                gap: 0;
+                background: #FFFFFF !important;
+                overflow: hidden;
+                page-break-after: always;
+                break-after: page;
+            }
+
+            .a4-print-page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
         }
     </style>
 </head>
@@ -140,7 +247,12 @@
             </div>
 
             <!-- Top Controls -->
-            <div class="flex items-center space-x-2 sm:space-x-3">
+            <div class="flex items-center space-x-2 sm:space-x-2.5">
+                <button onclick="openPrintModal()" class="px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition flex items-center space-x-1.5" title="Print Double-Sided A4 Card Sets">
+                    <span>🖨️</span>
+                    <span class="hidden sm:inline">Print Cards</span>
+                </button>
+
                 <button id="fullscreen-btn" onclick="toggleFullscreen()" class="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center space-x-1.5 text-xs font-medium border border-slate-700" title="Toggle Fullscreen">
                     <span id="fullscreen-icon">⛶</span>
                     <span class="hidden md:inline" id="fullscreen-label">Fullscreen</span>
@@ -202,96 +314,54 @@
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto py-2">
             <!-- Door 1 -->
             <div id="door-card-1" class="relative group cursor-pointer" onclick="handleDoorClick(1)">
-                <div class="relative bg-slate-950 rounded-2xl border-4 border-amber-800/80 p-2 shadow-2xl h-[340px] sm:h-[380px] flex flex-col justify-end overflow-hidden transition-all duration-300 hover:border-amber-500/80 hover:shadow-amber-500/10">
-                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-900 to-transparent z-0"></div>
-
-                    <div id="door-content-1" class="absolute inset-0 z-0 flex flex-col items-center justify-center p-4 text-center">
-                        <!-- SVG content dynamically inserted -->
+                <div id="door-panel-1" class="door-frame-card relative rounded-2xl border-2 border-slate-700/90 p-4 shadow-2xl h-[350px] sm:h-[395px] flex flex-col items-center justify-between overflow-hidden hover:border-amber-500/80 hover:-translate-y-1">
+                    <div class="w-full flex items-center justify-between z-10">
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-amber-400 title-font text-xs font-extrabold tracking-wider">DOOR 1</span>
+                        <span id="door-tag-1" class="hidden px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider shadow">YOUR PICK</span>
                     </div>
 
-                    <div id="door-panel-1" class="door-inner absolute inset-0 z-10 bg-gradient-to-br from-amber-900 via-amber-950 to-amber-950 rounded-xl border-2 border-amber-700/60 p-4 flex flex-col justify-between shadow-2xl">
-                        <div class="flex justify-between items-center">
-                            <div class="w-8 h-8 rounded-full bg-amber-800/50 border border-amber-600/40 flex items-center justify-center text-amber-200 text-xs font-bold">1</div>
-                            <div class="w-12 h-1 bg-amber-700/50 rounded-full"></div>
-                        </div>
+                    <div class="flex-grow w-full flex items-center justify-center my-1 overflow-hidden">
+                        <img id="door-img-1" alt="Door 1" class="max-h-[255px] sm:max-h-[290px] w-auto object-contain select-none pointer-events-none drop-shadow-2xl" />
+                    </div>
 
-                        <div class="my-auto text-center flex flex-col items-center">
-                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-950/80 border-2 border-amber-600/60 flex items-center justify-center shadow-inner mb-2">
-                                <span class="title-font text-5xl sm:text-6xl font-black bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent">1</span>
-                            </div>
-                            <span class="text-xs font-semibold tracking-wider text-amber-400/80 uppercase">Door One</span>
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-100 shadow-md border border-yellow-200 flex items-center justify-center">
-                                <div class="w-2 h-2 rounded-full bg-amber-800/50"></div>
-                            </div>
-                            <span id="door-tag-1" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-slate-950 tracking-wider">YOUR PICK</span>
-                        </div>
+                    <div id="door-caption-1" class="text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10">
+                        Closed Door
                     </div>
                 </div>
             </div>
 
             <!-- Door 2 -->
             <div id="door-card-2" class="relative group cursor-pointer" onclick="handleDoorClick(2)">
-                <div class="relative bg-slate-950 rounded-2xl border-4 border-amber-800/80 p-2 shadow-2xl h-[340px] sm:h-[380px] flex flex-col justify-end overflow-hidden transition-all duration-300 hover:border-amber-500/80 hover:shadow-amber-500/10">
-                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-900 to-transparent z-0"></div>
-
-                    <div id="door-content-2" class="absolute inset-0 z-0 flex flex-col items-center justify-center p-4 text-center">
-                        <!-- SVG content dynamically inserted -->
+                <div id="door-panel-2" class="door-frame-card relative rounded-2xl border-2 border-slate-700/90 p-4 shadow-2xl h-[350px] sm:h-[395px] flex flex-col items-center justify-between overflow-hidden hover:border-amber-500/80 hover:-translate-y-1">
+                    <div class="w-full flex items-center justify-between z-10">
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-amber-400 title-font text-xs font-extrabold tracking-wider">DOOR 2</span>
+                        <span id="door-tag-2" class="hidden px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider shadow">YOUR PICK</span>
                     </div>
 
-                    <div id="door-panel-2" class="door-inner absolute inset-0 z-10 bg-gradient-to-br from-amber-900 via-amber-950 to-amber-950 rounded-xl border-2 border-amber-700/60 p-4 flex flex-col justify-between shadow-2xl">
-                        <div class="flex justify-between items-center">
-                            <div class="w-8 h-8 rounded-full bg-amber-800/50 border border-amber-600/40 flex items-center justify-center text-amber-200 text-xs font-bold">2</div>
-                            <div class="w-12 h-1 bg-amber-700/50 rounded-full"></div>
-                        </div>
+                    <div class="flex-grow w-full flex items-center justify-center my-1 overflow-hidden">
+                        <img id="door-img-2" alt="Door 2" class="max-h-[255px] sm:max-h-[290px] w-auto object-contain select-none pointer-events-none drop-shadow-2xl" />
+                    </div>
 
-                        <div class="my-auto text-center flex flex-col items-center">
-                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-950/80 border-2 border-amber-600/60 flex items-center justify-center shadow-inner mb-2">
-                                <span class="title-font text-5xl sm:text-6xl font-black bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent">2</span>
-                            </div>
-                            <span class="text-xs font-semibold tracking-wider text-amber-400/80 uppercase">Door Two</span>
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-100 shadow-md border border-yellow-200 flex items-center justify-center">
-                                <div class="w-2 h-2 rounded-full bg-amber-800/50"></div>
-                            </div>
-                            <span id="door-tag-2" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-slate-950 tracking-wider">YOUR PICK</span>
-                        </div>
+                    <div id="door-caption-2" class="text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10">
+                        Closed Door
                     </div>
                 </div>
             </div>
 
             <!-- Door 3 -->
             <div id="door-card-3" class="relative group cursor-pointer" onclick="handleDoorClick(3)">
-                <div class="relative bg-slate-950 rounded-2xl border-4 border-amber-800/80 p-2 shadow-2xl h-[340px] sm:h-[380px] flex flex-col justify-end overflow-hidden transition-all duration-300 hover:border-amber-500/80 hover:shadow-amber-500/10">
-                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-900 to-transparent z-0"></div>
-
-                    <div id="door-content-3" class="absolute inset-0 z-0 flex flex-col items-center justify-center p-4 text-center">
-                        <!-- SVG content dynamically inserted -->
+                <div id="door-panel-3" class="door-frame-card relative rounded-2xl border-2 border-slate-700/90 p-4 shadow-2xl h-[350px] sm:h-[395px] flex flex-col items-center justify-between overflow-hidden hover:border-amber-500/80 hover:-translate-y-1">
+                    <div class="w-full flex items-center justify-between z-10">
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-amber-400 title-font text-xs font-extrabold tracking-wider">DOOR 3</span>
+                        <span id="door-tag-3" class="hidden px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider shadow">YOUR PICK</span>
                     </div>
 
-                    <div id="door-panel-3" class="door-inner absolute inset-0 z-10 bg-gradient-to-br from-amber-900 via-amber-950 to-amber-950 rounded-xl border-2 border-amber-700/60 p-4 flex flex-col justify-between shadow-2xl">
-                        <div class="flex justify-between items-center">
-                            <div class="w-8 h-8 rounded-full bg-amber-800/50 border border-amber-600/40 flex items-center justify-center text-amber-200 text-xs font-bold">3</div>
-                            <div class="w-12 h-1 bg-amber-700/50 rounded-full"></div>
-                        </div>
+                    <div class="flex-grow w-full flex items-center justify-center my-1 overflow-hidden">
+                        <img id="door-img-3" alt="Door 3" class="max-h-[255px] sm:max-h-[290px] w-auto object-contain select-none pointer-events-none drop-shadow-2xl" />
+                    </div>
 
-                        <div class="my-auto text-center flex flex-col items-center">
-                            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-950/80 border-2 border-amber-600/60 flex items-center justify-center shadow-inner mb-2">
-                                <span class="title-font text-5xl sm:text-6xl font-black bg-gradient-to-b from-amber-200 via-amber-400 to-yellow-600 bg-clip-text text-transparent">3</span>
-                            </div>
-                            <span class="text-xs font-semibold tracking-wider text-amber-400/80 uppercase">Door Three</span>
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-100 shadow-md border border-yellow-200 flex items-center justify-center">
-                                <div class="w-2 h-2 rounded-full bg-amber-800/50"></div>
-                            </div>
-                            <span id="door-tag-3" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500 text-slate-950 tracking-wider">YOUR PICK</span>
-                        </div>
+                    <div id="door-caption-3" class="text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10">
+                        Closed Door
                     </div>
                 </div>
             </div>
@@ -459,6 +529,62 @@
     <!-- Canvas Confetti Generator Canvas -->
     <canvas id="confetti-canvas" class="pointer-events-none fixed inset-0 z-50 w-full h-full"></canvas>
 
+    <!-- Modal: Print Double-Sided A4 Cards Preview -->
+    <div id="print-modal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl relative flex flex-col max-h-[92vh]">
+            <button onclick="closePrintModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold">✕</button>
+
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4 pr-8">
+                <div>
+                    <h3 class="title-font text-lg sm:text-xl font-extrabold text-amber-400 flex items-center space-x-2">
+                        <span>🖨️</span> <span>Printable Monty Hall Card Sets (A4 Double-Sided)</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Prints on <strong>one A4 sheet, double-sided</strong>: Page 1 has <strong>3 sets of 3 cards</strong> (6 open goat doors + 3 open car doors), and Page 2 has <strong>9 matching closed doors</strong> on the reverse.
+                    </p>
+                </div>
+
+                <div class="flex items-center space-x-2 flex-shrink-0">
+                    <label class="cursor-pointer px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition" title="Load Untitled drawing.png if opened locally without a web server">
+                        🖼️ Load Source PNG
+                        <input type="file" accept="image/*" onchange="handleCustomSpriteUpload(event)" class="hidden" />
+                    </label>
+                    <button onclick="triggerCardPrint()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg transition flex items-center space-x-1.5">
+                        <span>🖨️ Print A4 Double-Sided</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Duplex Instructions Banner -->
+            <div class="mt-3 bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2">
+                <span>✂️ <strong>3 Sets Ready to Cut:</strong> Row 1 = Set 1 (2 Goats, 1 Car) • Row 2 = Set 2 (2 Goats, 1 Car) • Row 3 = Set 3 (2 Goats, 1 Car)</span>
+                <span class="text-amber-400 font-semibold">Tip: Enable "Print on Both Sides" &amp; "Background Graphics"</span>
+            </div>
+
+            <!-- Visual Preview of Page 1 & Page 2 -->
+            <div class="mt-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 p-2">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 text-center">Page 1 — Card Fronts (6 Goats + 3 Cars)</div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-center overflow-hidden">
+                        <div id="preview-page-front" class="a4-sheet-preview origin-top shadow-xl" style="transform: scale(0.36); margin-bottom: -188mm;"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 text-center">Page 2 — Card Backs (9 Closed Doors)</div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-center overflow-hidden">
+                        <div id="preview-page-back" class="a4-sheet-preview origin-top shadow-xl" style="transform: scale(0.36); margin-bottom: -188mm;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dedicated Print Output Container (Visible Only When Printing) -->
+    <div id="print-sheet-container" aria-hidden="true">
+        <div id="print-page-front" class="a4-print-page"></div>
+        <div id="print-page-back" class="a4-print-page"></div>
+    </div>
+
     <!-- Modal: Pass Device to Contestant (Two-Player Mode) -->
     <div id="p2-pass-modal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
@@ -530,51 +656,310 @@
 
     <script>
         /* ====================================================================
-           MONTY HALL GAME ENGINE & SIMULATOR SCRIPT
+           DOOR SPRITE ARTWORK (SHARED BY ON-SCREEN STAGE & PRINTABLE A4 CARDS)
            ==================================================================== */
 
-        // SVG Vector Art Templates
-        const SVG_GOAT = `
-            <svg class="w-28 h-28 sm:w-36 sm:h-36 drop-shadow-2xl animate-bounce" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M70 70C50 40 30 50 25 35C20 20 40 20 60 45" stroke="#D97706" stroke-width="8" stroke-linecap="round" fill="none"/>
-                <path d="M130 70C150 40 170 50 175 35C180 20 160 20 140 45" stroke="#D97706" stroke-width="8" stroke-linecap="round" fill="none"/>
-                <ellipse cx="45" cy="85" rx="20" ry="8" transform="rotate(-20 45 85)" fill="#9CA3AF"/>
-                <ellipse cx="155" cy="85" rx="20" ry="8" transform="rotate(20 155 85)" fill="#9CA3AF"/>
-                <path d="M60 80C60 65 80 60 100 60C120 60 140 65 140 80C140 120 130 150 100 150C70 150 60 120 60 80Z" fill="#E5E7EB"/>
-                <ellipse cx="100" cy="130" rx="25" ry="15" fill="#D1D5DB"/>
-                <circle cx="92" cy="128" r="3" fill="#374151"/>
-                <circle cx="108" cy="128" r="3" fill="#374151"/>
-                <circle cx="80" cy="90" r="7" fill="#111827"/>
-                <circle cx="120" cy="90" r="7" fill="#111827"/>
-                <circle cx="78" cy="88" r="2.5" fill="#FFFFFF"/>
-                <circle cx="118" cy="88" r="2.5" fill="#FFFFFF"/>
-                <path d="M90 150L100 175L110 150Z" fill="#F3F4F6"/>
-                <rect x="75" y="142" width="50" height="8" rx="4" fill="#EF4444"/>
-                <circle cx="100" cy="154" r="6" fill="#F59E0B"/>
-            </svg>
-            <span class="text-xs font-black uppercase tracking-widest text-slate-400 mt-2">GOAT 🐐</span>
-        `;
+        // Built-in vector data URIs matching the 3 illustrated doors (with dark stage backdrop #162033)
+        function svgToDataUri(svg) {
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.trim());
+        }
 
-        const SVG_CAR = `
-            <svg class="w-32 h-32 sm:w-40 sm:h-40 drop-shadow-2xl" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="100" cy="155" rx="80" ry="12" fill="rgba(0,0,0,0.4)"/>
-                <path d="M25 130C25 120 35 115 50 115L65 95C75 80 95 75 125 75L155 90C170 95 180 105 180 120V135C180 142 175 145 168 145H32C25 145 25 138 25 130Z" fill="#DC2626"/>
-                <path d="M70 95L82 82C88 76 98 74 120 74L148 88L160 98H70Z" fill="#991B1B"/>
-                <path d="M76 93L85 83C89 79 98 77 115 77H122L118 93H76Z" fill="#60A5FA" opacity="0.8"/>
-                <path d="M124 93L127 77H143L152 93H124Z" fill="#93C5FD" opacity="0.8"/>
-                <circle cx="175" cy="120" r="6" fill="#FEF08A"/>
-                <path d="M30 118H175V124H30V118Z" fill="#FFFFFF" opacity="0.3"/>
-                <circle cx="60" cy="142" r="18" fill="#18181B"/>
-                <circle cx="60" cy="142" r="10" fill="#9CA3AF"/>
-                <circle cx="60" cy="142" r="4" fill="#374151"/>
-                <circle cx="145" cy="142" r="18" fill="#18181B"/>
-                <circle cx="145" cy="142" r="10" fill="#9CA3AF"/>
-                <circle cx="145" cy="142" r="4" fill="#374151"/>
+        const FALLBACK_CLOSED_URI = svgToDataUri(`
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 315">
+                <!-- Outer wooden doorframe -->
+                <rect x="14" y="12" width="174" height="286" rx="3" fill="#C4833F" stroke="#3B2314" stroke-width="5"/>
+                <!-- Door leaf -->
+                <rect x="29" y="27" width="144" height="266" fill="#BA7B3A" stroke="#3B2314" stroke-width="4.5"/>
+                <!-- Top recessed panel -->
+                <rect x="48" y="46" width="106" height="96" rx="2" fill="#A96C2F" stroke="#5A3419" stroke-width="3.5"/>
+                <!-- Bottom recessed panel -->
+                <rect x="48" y="176" width="106" height="96" rx="2" fill="#A96C2F" stroke="#5A3419" stroke-width="3.5"/>
+                <!-- Brass doorknob on left -->
+                <circle cx="43" cy="160" r="9.5" fill="#EAB308" stroke="#3B2314" stroke-width="3.5"/>
+                <!-- Floor line -->
+                <line x1="10" y1="298" x2="192" y2="298" stroke="#3B2314" stroke-width="5" stroke-linecap="round"/>
             </svg>
-            <span class="text-xs font-black uppercase tracking-widest text-amber-400 mt-1">SPORTS CAR 🚗</span>
-        `;
+        `);
 
-        // Sound Audio Synthesizer (Web Audio API)
+        const FALLBACK_GOAT_URI = svgToDataUri(`
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 315">
+                <!-- Outer wooden doorframe -->
+                <rect x="12" y="12" width="152" height="276" rx="3" fill="#C4833F" stroke="#3B2314" stroke-width="5"/>
+                <!-- Dark stage-matched doorway interior -->
+                <rect x="25" y="25" width="126" height="258" fill="#162033" stroke="#3B2314" stroke-width="4"/>
+                <!-- Subtle floor shadow under goat -->
+                <ellipse cx="86" cy="264" rx="54" ry="12" fill="#0B111E"/>
+                <!-- Goat horns -->
+                <path d="M84 114 C78 96, 68 88, 63 87 C65 96, 72 106, 78 117 Z" fill="#9A6332" stroke="#3B2314" stroke-width="3.5" stroke-linejoin="round"/>
+                <path d="M98 113 C103 95, 112 87, 118 86 C116 95, 110 105, 104 116 Z" fill="#9A6332" stroke="#3B2314" stroke-width="3.5" stroke-linejoin="round"/>
+                <!-- Goat body & legs -->
+                <path d="M27 166 C48 164, 66 168, 76 175 L108 175 L108 228 L104 260 L94 260 L93 224 L82 224 L80 262 L70 262 L69 224 L52 224 L50 260 L40 260 L38 224 L27 224 Z" fill="#F8F5EC" stroke="#3B2314" stroke-width="4" stroke-linejoin="round"/>
+                <!-- Hooves -->
+                <rect x="40" y="253" width="10" height="7" fill="#7C4D25" stroke="#3B2314" stroke-width="2.5"/>
+                <rect x="70" y="255" width="10" height="7" fill="#7C4D25" stroke="#3B2314" stroke-width="2.5"/>
+                <rect x="94" y="253" width="10" height="7" fill="#7C4D25" stroke="#3B2314" stroke-width="2.5"/>
+                <!-- Goat ears -->
+                <ellipse cx="64" cy="133" rx="14" ry="6.5" transform="rotate(-24 64 133)" fill="#F8F5EC" stroke="#3B2314" stroke-width="3.8"/>
+                <ellipse cx="122" cy="132" rx="14" ry="6.5" transform="rotate(24 122 132)" fill="#F8F5EC" stroke="#3B2314" stroke-width="3.8"/>
+                <!-- Goat head & beard -->
+                <path d="M74 124 C74 113, 108 113, 111 126 C114 140, 118 152, 114 162 C110 170, 99 172, 95 169 L96 181 L88 176 L83 180 L84 168 C75 164, 71 146, 74 124 Z" fill="#F8F5EC" stroke="#3B2314" stroke-width="4" stroke-linejoin="round"/>
+                <!-- Eyes & snout -->
+                <circle cx="88" cy="136" r="3" fill="#3B2314"/>
+                <circle cx="103" cy="136" r="3" fill="#3B2314"/>
+                <path d="M99 152 Q105 155 110 151" fill="none" stroke="#3B2314" stroke-width="3" stroke-linecap="round"/>
+                <path d="M97 161 Q104 164 109 160" fill="none" stroke="#3B2314" stroke-width="2.8" stroke-linecap="round"/>
+                <!-- Swung-open wooden door on the right -->
+                <polygon points="145,35 198,23 198,303 145,284" fill="#BA7B3A" stroke="#3B2314" stroke-width="4.5" stroke-linejoin="round"/>
+                <polygon points="154,53 182,46 182,139 154,142" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
+                <polygon points="154,174 182,175 182,268 154,261" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
+                <!-- Door edge thickness & knobs -->
+                <rect x="198" y="23" width="6" height="280" fill="#9A6028" stroke="#3B2314" stroke-width="3"/>
+                <ellipse cx="207" cy="164" rx="4.5" ry="7" fill="#EAB308" stroke="#3B2314" stroke-width="3"/>
+                <ellipse cx="187" cy="164" rx="6.5" ry="8.5" fill="#EAB308" stroke="#3B2314" stroke-width="3.2"/>
+                <line x1="10" y1="286" x2="145" y2="286" stroke="#3B2314" stroke-width="5" stroke-linecap="round"/>
+            </svg>
+        `);
+
+        const FALLBACK_CAR_URI = svgToDataUri(`
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 315">
+                <!-- Outer wooden doorframe -->
+                <rect x="12" y="12" width="152" height="276" rx="3" fill="#C4833F" stroke="#3B2314" stroke-width="5"/>
+                <!-- Dark stage-matched doorway interior -->
+                <rect x="25" y="25" width="126" height="258" fill="#162033" stroke="#3B2314" stroke-width="4"/>
+                <!-- Floor shadow under car -->
+                <ellipse cx="86" cy="252" rx="56" ry="14" fill="#0B111E"/>
+                <!-- Car wheels -->
+                <ellipse cx="38" cy="233" rx="12" ry="15" fill="#57463A" stroke="#3B2314" stroke-width="3.8"/>
+                <ellipse cx="131" cy="224" rx="10" ry="13" fill="#57463A" stroke="#3B2314" stroke-width="3.8"/>
+                <!-- Side mirror -->
+                <ellipse cx="33" cy="159" rx="6" ry="8" fill="#DC2626" stroke="#3B2314" stroke-width="3.5"/>
+                <!-- Red car cabin & hood -->
+                <path d="M36 164 L47 132 C52 121, 66 118, 92 119 C114 120, 124 127, 130 144 L138 176 L138 220 C122 232, 60 236, 27 224 L27 182 C27 172, 31 167, 36 164 Z" fill="#DC2626" stroke="#3B2314" stroke-width="4.2" stroke-linejoin="round"/>
+                <!-- Windshield -->
+                <path d="M46 162 L55 137 C59 130, 72 128, 92 129 C105 130, 110 135, 111 146 L111 164 Z" fill="#A5C4D4" stroke="#3B2314" stroke-width="3.5" stroke-linejoin="round"/>
+                <!-- Side window -->
+                <path d="M118 136 C123 139, 127 148, 129 162 L118 164 Z" fill="#8FB2C4" stroke="#3B2314" stroke-width="3.2" stroke-linejoin="round"/>
+                <!-- Headlights & grille -->
+                <ellipse cx="34" cy="193" rx="6" ry="9" fill="#FEF9C3" stroke="#3B2314" stroke-width="3.2"/>
+                <ellipse cx="90" cy="197" rx="9" ry="11" fill="#FEF9C3" stroke="#3B2314" stroke-width="3.2"/>
+                <path d="M46 184 Q63 188 77 184" fill="none" stroke="#3B2314" stroke-width="3.2" stroke-linecap="round"/>
+                <rect x="42" y="205" width="38" height="7" rx="3.5" fill="#57463A" stroke="#3B2314" stroke-width="3"/>
+                <!-- Front right wheel -->
+                <ellipse cx="109" cy="233" rx="14" ry="18" fill="#57463A" stroke="#3B2314" stroke-width="4"/>
+                <ellipse cx="111" cy="233" rx="6" ry="8" fill="#9CA3AF" stroke="#3B2314" stroke-width="2.5"/>
+                <!-- Swung-open wooden door on the right -->
+                <polygon points="145,35 198,23 198,303 145,284" fill="#BA7B3A" stroke="#3B2314" stroke-width="4.5" stroke-linejoin="round"/>
+                <polygon points="154,53 182,46 182,139 154,142" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
+                <polygon points="154,174 182,175 182,268 154,261" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
+                <rect x="198" y="23" width="6" height="280" fill="#9A6028" stroke="#3B2314" stroke-width="3"/>
+                <ellipse cx="207" cy="164" rx="4.5" ry="7" fill="#EAB308" stroke="#3B2314" stroke-width="3"/>
+                <ellipse cx="187" cy="164" rx="6.5" ry="8.5" fill="#EAB308" stroke="#3B2314" stroke-width="3.2"/>
+                <line x1="10" y1="286" x2="145" y2="286" stroke="#3B2314" stroke-width="5" stroke-linecap="round"/>
+            </svg>
+        `);
+
+        // Active sprite set used identically by both the stage and printable A4 cards
+        const doorSprites = {
+            closed: FALLBACK_CLOSED_URI,
+            goat: FALLBACK_GOAT_URI,
+            car: FALLBACK_CAR_URI
+        };
+
+        // Process the 3-door sprite sheet (Untitled drawing.png) to replace green interior with dark stage slate
+        function processDoorSpriteSheet(imgElement) {
+            try {
+                const crops = [
+                    { key: 'goat',   sx: 14,  sy: 14, sw: 206, sh: 306, recolorGreen: true },
+                    { key: 'car',    sx: 242, sy: 14, sw: 206, sh: 306, recolorGreen: true },
+                    { key: 'closed', sx: 476, sy: 14, sw: 192, sh: 306, recolorGreen: false }
+                ];
+
+                // Target dark stage background RGB (#162033) matching the game design
+                const targetR = 22, targetG = 32, targetB = 51;
+
+                crops.forEach(crop => {
+                    const c = document.createElement('canvas');
+                    c.width = crop.sw;
+                    c.height = crop.sh;
+                    const cCtx = c.getContext('2d');
+                    cCtx.drawImage(imgElement, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh);
+
+                    const imgData = cCtx.getImageData(0, 0, crop.sw, crop.sh);
+                    const data = imgData.data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const a = data[i + 3];
+
+                        if (a < 15) {
+                            // Keep surrounding exterior region completely transparent
+                            data[i + 3] = 0;
+                            continue;
+                        }
+
+                        // If image had white surrounding background instead of alpha, make outer pure white transparent
+                        if (r > 248 && g > 248 && b > 248) {
+                            data[i + 3] = 0;
+                            continue;
+                        }
+
+                        if (crop.recolorGreen) {
+                            // Sage green doorway interior has G > R and G > B; floor shadow keeps proportional luminance
+                            const greenExcess = g - Math.max(r, b);
+                            if (greenExcess > 1) {
+                                const blend = Math.min(1, Math.max(0, (greenExcess - 1) / 7));
+                                const lum = Math.min(1.05, Math.max(0.55, (0.299 * r + 0.587 * g + 0.114 * b) / 165));
+                                const newR = Math.round(targetR * lum);
+                                const newG = Math.round(targetG * lum);
+                                const newB = Math.round(targetB * lum);
+
+                                data[i]     = Math.round(r * (1 - blend) + newR * blend);
+                                data[i + 1] = Math.round(g * (1 - blend) + newG * blend);
+                                data[i + 2] = Math.round(b * (1 - blend) + newB * blend);
+                            }
+                        }
+                    }
+
+                    cCtx.putImageData(imgData, 0, 0);
+                    doorSprites[crop.key] = c.toDataURL('image/png');
+                });
+
+                refreshAllDoorVisuals();
+            } catch (err) {
+                // If opened via file:// with strict CORS canvas tainting, built-in matching SVGs remain active
+                console.info('Using built-in door artwork (load PNG via Print Cards modal if needed):', err.message);
+            }
+        }
+
+        function tryLoadDefaultSpriteFile() {
+            const loaderImg = new Image();
+            loaderImg.onload = function() {
+                processDoorSpriteSheet(loaderImg);
+            };
+            loaderImg.src = 'Untitled drawing.png';
+        }
+
+        function handleCustomSpriteUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    processDoorSpriteSheet(img);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setDoorVisual(doorNum, state) {
+            const imgEl = document.getElementById(`door-img-${doorNum}`);
+            const capEl = document.getElementById(`door-caption-${doorNum}`);
+            if (!imgEl || !capEl) return;
+
+            imgEl.classList.remove('door-revealed-anim');
+            void imgEl.offsetWidth; // restart animation on reveal
+
+            if (state === 'GOAT') {
+                imgEl.src = doorSprites.goat;
+                imgEl.classList.add('door-revealed-anim');
+                capEl.textContent = 'GOAT 🐐';
+                capEl.className = 'text-xs font-black uppercase tracking-widest text-slate-300 z-10';
+            } else if (state === 'CAR') {
+                imgEl.src = doorSprites.car;
+                imgEl.classList.add('door-revealed-anim');
+                capEl.textContent = 'SPORTS CAR 🚗';
+                capEl.className = 'text-xs font-black uppercase tracking-widest text-amber-400 z-10';
+            } else {
+                imgEl.src = doorSprites.closed;
+                capEl.textContent = 'Closed Door';
+                capEl.className = 'text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10';
+            }
+        }
+
+        function refreshAllDoorVisuals() {
+            for (let i = 1; i <= 3; i++) {
+                const capEl = document.getElementById(`door-caption-${i}`);
+                if (!capEl) continue;
+                const txt = capEl.textContent;
+                if (txt.includes('GOAT')) {
+                    document.getElementById(`door-img-${i}`).src = doorSprites.goat;
+                } else if (txt.includes('CAR')) {
+                    document.getElementById(`door-img-${i}`).src = doorSprites.car;
+                } else {
+                    document.getElementById(`door-img-${i}`).src = doorSprites.closed;
+                }
+            }
+            renderPrintableCards();
+        }
+
+        /* ====================================================================
+           DOUBLE-SIDED A4 PRINTABLE CARDS BUILDER (3 SETS OF 3 CARDS)
+           ==================================================================== */
+        function renderPrintableCards() {
+            // 3 sets of 3 cards (each row = 2 open goat doors + 1 open car door; 6 goats & 3 cars total)
+            const frontLayout = [
+                // Set 1
+                { type: 'goat', label: 'GOAT' },
+                { type: 'goat', label: 'GOAT' },
+                { type: 'car',  label: 'SPORTS CAR' },
+                // Set 2
+                { type: 'goat', label: 'GOAT' },
+                { type: 'car',  label: 'SPORTS CAR' },
+                { type: 'goat', label: 'GOAT' },
+                // Set 3
+                { type: 'car',  label: 'SPORTS CAR' },
+                { type: 'goat', label: 'GOAT' },
+                { type: 'goat', label: 'GOAT' }
+            ];
+
+            const frontHtml = frontLayout.map(card => `
+                <div class="print-card-cell">
+                    <div class="print-card-inner-border"></div>
+                    <img src="${doorSprites[card.type]}" alt="${card.label}" class="print-card-img" />
+                    <div class="print-card-footer" style="color: ${card.type === 'car' ? '#FBBF24' : '#CBD5E1'};">${card.label}</div>
+                </div>
+            `).join('');
+
+            const backHtml = Array.from({ length: 9 }).map(() => `
+                <div class="print-card-cell">
+                    <div class="print-card-inner-border"></div>
+                    <img src="${doorSprites.closed}" alt="Closed Door" class="print-card-img" />
+                    <div class="print-card-footer">MONTY HALL</div>
+                </div>
+            `).join('');
+
+            ['preview-page-front', 'print-page-front'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = frontHtml;
+            });
+
+            ['preview-page-back', 'print-page-back'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = backHtml;
+            });
+        }
+
+        function openPrintModal() {
+            renderPrintableCards();
+            document.getElementById('print-modal').classList.remove('hidden');
+        }
+
+        function closePrintModal() {
+            document.getElementById('print-modal').classList.add('hidden');
+        }
+
+        function triggerCardPrint() {
+            renderPrintableCards();
+            window.print();
+        }
+
+        /* ====================================================================
+           SOUND AUDIO SYNTHESIZER (WEB AUDIO API)
+           ==================================================================== */
         let audioEnabled = true;
         let audioCtx = null;
 
@@ -708,6 +1093,8 @@
         // Initialize Game on Load
         window.onload = function() {
             startNewRound();
+            renderPrintableCards();
+            tryLoadDefaultSpriteFile();
             initChart();
             renderStats();
         };
@@ -740,24 +1127,16 @@
 
             document.getElementById('round-number-display').textContent = `#${gameState.roundNumber}`;
 
-            // Reset Door Graphics & Animations instantly
+            // Reset all 3 doors to the Closed Door graphic
             for (let i = 1; i <= 3; i++) {
                 const panel = document.getElementById(`door-panel-${i}`);
                 const card = document.getElementById(`door-card-${i}`);
                 const tag = document.getElementById(`door-tag-${i}`);
-                const content = document.getElementById(`door-content-${i}`);
 
-                panel.style.transition = 'none';
-                panel.classList.remove('is-open', 'is-selected');
-                card.classList.remove('pointer-events-none', 'opacity-80');
+                panel.classList.remove('is-selected');
+                card.classList.remove('pointer-events-none', 'opacity-85');
                 tag.classList.add('hidden');
-                content.innerHTML = '';
-            }
-
-            void document.body.offsetHeight; // Force reflow
-
-            for (let i = 1; i <= 3; i++) {
-                document.getElementById(`door-panel-${i}`).style.transition = '';
+                setDoorVisual(i, 'CLOSED');
             }
 
             // Game Mode Initialization
@@ -829,9 +1208,8 @@
 
             setTimeout(() => {
                 playSound('open');
-                document.getElementById(`door-content-${gameState.hostDoor}`).innerHTML = SVG_GOAT;
-                document.getElementById(`door-panel-${gameState.hostDoor}`).classList.add('is-open');
-                document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-80');
+                setDoorVisual(gameState.hostDoor, 'GOAT');
+                document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-85');
             }, 300);
 
             document.getElementById('stage-badge').textContent = 'STAGE 2: STICK OR SWITCH';
@@ -852,7 +1230,6 @@
             playSound('click');
             gameState.carDoor = doorNumber;
             
-            // Display device transfer modal for host privacy
             document.getElementById('p2-secret-door-num').textContent = `Door ${doorNumber}`;
             document.getElementById('p2-pass-modal').classList.remove('hidden');
         }
@@ -898,9 +1275,8 @@
             gameState.switchDoor = [1, 2, 3].find(d => d !== gameState.initialPick && d !== gameState.hostDoor);
             gameState.p2Stage = 'CONTESTANT_DECISION';
 
-            document.getElementById(`door-content-${gameState.hostDoor}`).innerHTML = SVG_GOAT;
-            document.getElementById(`door-panel-${gameState.hostDoor}`).classList.add('is-open');
-            document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-80');
+            setDoorVisual(gameState.hostDoor, 'GOAT');
+            document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-85');
 
             document.getElementById('stage-badge').textContent = 'CONTESTANT: STICK OR SWITCH';
             document.getElementById('host-speech').innerHTML = `
@@ -925,12 +1301,6 @@
 
             const isWin = (gameState.finalPick === gameState.carDoor);
 
-            // Set up hidden content behind all doors
-            for (let i = 1; i <= 3; i++) {
-                const content = document.getElementById(`door-content-${i}`);
-                content.innerHTML = (i === gameState.carDoor) ? SVG_CAR : SVG_GOAT;
-            }
-
             // Update door tags and selection borders to reflect the contestant's final pick
             for (let i = 1; i <= 3; i++) {
                 document.getElementById(`door-tag-${i}`).classList.add('hidden');
@@ -939,8 +1309,8 @@
             document.getElementById(`door-tag-${gameState.finalPick}`).classList.remove('hidden');
             document.getElementById(`door-panel-${gameState.finalPick}`).classList.add('is-selected');
 
-            // ONLY open the contestant's final chosen door
-            document.getElementById(`door-panel-${gameState.finalPick}`).classList.add('is-open');
+            // Reveal the contestant's final chosen door with the matching open door graphic
+            setDoorVisual(gameState.finalPick, isWin ? 'CAR' : 'GOAT');
 
             if (isWin) {
                 playSound('win');
@@ -1097,10 +1467,7 @@
                 return;
             }
 
-            // Headers formatted cleanly without URL-breaking special characters
             const headers = ["Round Number", "Mode", "Initial Pick", "Host Opened Door", "Strategy Action", "Final Pick Door", "Actual Car Location", "Outcome", "Is Win"];
-            
-            // Export all rounds stored in history, sorted chronologically from Round 1 upwards
             const chronologicalHistory = [...gameState.history].reverse();
 
             const rows = chronologicalHistory.map(h => [
@@ -1116,8 +1483,6 @@
             ]);
 
             const csvString = [headers.join(","), ...rows.map(e => e.join(","))].join("\r\n");
-            
-            // \uFEFF is a UTF-8 Byte Order Mark (BOM) so Excel opens special characters and standard commas properly
             const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
 
