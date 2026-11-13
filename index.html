@@ -562,7 +562,7 @@
                             </div>
                             <div>
                                 <h3 class="title-font text-lg font-extrabold text-white">Create a Game Room</h3>
-                                <p class="text-xs text-slate-400">Set up a room code &amp; link for players to join</p>
+                                <p class="text-xs text-slate-400">Set up a room code, timer &amp; scoring rules</p>
                             </div>
                         </div>
 
@@ -577,18 +577,46 @@
                                 <select id="mp-duration-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 font-semibold text-sm">
                                     <option value="60">1 Minute (Quick Demo)</option>
                                     <option value="120">2 Minutes</option>
-                                    <option value="180" selected>3 Minutes (Recommended)</option>
-                                    <option value="300">5 Minutes</option>
+                                    <option value="180">3 Minutes</option>
+                                    <option value="300" selected>5 Minutes (Recommended)</option>
                                     <option value="480">8 Minutes</option>
                                     <option value="600">10 Minutes</option>
                                     <option value="900">15 Minutes</option>
                                 </select>
                             </div>
 
+                            <!-- Scoring Rules Configuration -->
+                            <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-amber-400">🎯 Scoring Rules (Points)</span>
+                                    <button type="button" onclick="mpResetDefaultScoringInputs('mp-score')" class="text-[11px] text-slate-400 hover:text-amber-300 underline">
+                                        Reset Default
+                                    </button>
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-2 items-center text-[11px] text-slate-400 font-semibold pt-0.5">
+                                    <span>Role</span>
+                                    <span class="text-center text-emerald-400">🚗 Win (Car)</span>
+                                    <span class="text-center text-rose-400">🐐 Goat</span>
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-2 items-center">
+                                    <span class="text-xs font-bold text-emerald-300">🧍 Contestant</span>
+                                    <input type="number" id="mp-score-contestant-win" value="1" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-center text-sm font-extrabold text-white focus:outline-none focus:border-emerald-500">
+                                    <input type="number" id="mp-score-contestant-goat" value="-1" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-center text-sm font-extrabold text-white focus:outline-none focus:border-rose-500">
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-2 items-center">
+                                    <span class="text-xs font-bold text-amber-300">🎙️ Host</span>
+                                    <input type="number" id="mp-score-host-win" value="0" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-center text-sm font-extrabold text-white focus:outline-none focus:border-amber-500">
+                                    <input type="number" id="mp-score-host-goat" value="0" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-center text-sm font-extrabold text-white focus:outline-none focus:border-amber-500">
+                                </div>
+                            </div>
+
                             <label class="flex items-center justify-between gap-3 bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-2.5 cursor-pointer select-none">
                                 <div>
                                     <span class="block text-xs font-bold text-slate-200">Include me in player pairings</span>
-                                    <span class="block text-[11px] text-slate-400">Turn off if you are only projecting/organising</span>
+                                    <span class="block text-[11px] text-slate-400">Turn off to project a live leaderboard on your screen</span>
                                 </div>
                                 <input type="checkbox" id="mp-host-plays" checked class="w-4 h-4 accent-amber-500 rounded cursor-pointer">
                             </label>
@@ -642,7 +670,12 @@
                 <!-- Top Room Code & Share Link Bar -->
                 <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-950/90 rounded-2xl p-5 border border-indigo-500/30">
                     <div>
-                        <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-400 block">Room Code</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-400">Room Code</span>
+                            <span id="mp-lobby-projector-badge" class="hidden px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-extrabold uppercase tracking-wider">
+                                📺 Projector Leaderboard Mode
+                            </span>
+                        </div>
                         <div class="flex items-center space-x-3 mt-1">
                             <span id="mp-lobby-code" class="title-font text-4xl sm:text-5xl font-black tracking-widest text-white">----</span>
                             <button id="mp-copy-code-btn" onclick="mpCopyCode()" class="px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold border border-indigo-500/30 transition">
@@ -654,7 +687,7 @@
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                         <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5">
                             <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Session Timer</span>
-                            <span id="mp-lobby-duration-badge" class="title-font text-lg font-extrabold text-amber-400">3:00</span>
+                            <span id="mp-lobby-duration-badge" class="title-font text-lg font-extrabold text-amber-400">5:00</span>
                         </div>
                         <button onclick="mpLeaveRoom()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs font-bold transition">
                             Leave Room
@@ -681,11 +714,57 @@
                     </div>
                     <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
                         <div class="font-bold text-emerald-400 mb-1">2. Scoring Points</div>
-                        <p class="text-slate-400"><strong>Contestant</strong> scores <strong>+1 pt</strong> if they win the Car. <strong>Game Show Host</strong> scores <strong>+1 pt</strong> if they get a Goat!</p>
+                        <p id="mp-lobby-scoring-text" class="text-slate-400 leading-relaxed">
+                            <strong>Contestant:</strong> +1 pt for Car, -1 pt for Goat.<br>
+                            <strong>Gameshow Host:</strong> 0 pts.
+                        </p>
                     </div>
                     <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
                         <div class="font-bold text-purple-400 mb-1">3. Remix &amp; Win</div>
                         <p class="text-slate-400">After every match, both players return to the waiting room to pair with new opponents until time runs out!</p>
+                    </div>
+                </div>
+
+                <!-- Host Scoring Customiser in Lobby -->
+                <div id="mp-lobby-scoring-editor" class="hidden bg-slate-950/80 border border-amber-500/30 rounded-xl p-4 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-amber-400">🎯 Host Scoring Controls</span>
+                            <span class="block text-[11px] text-slate-400">Adjust points awarded per game before starting (syncs live to all players)</span>
+                        </div>
+                        <button type="button" onclick="mpResetLobbyScoringToDefault()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold border border-slate-700">
+                            Reset Default (+1 / -1 Contestant only)
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-2">
+                            <span class="text-xs font-bold text-emerald-300">🧍 Contestant</span>
+                            <div class="flex items-center space-x-2">
+                                <label class="text-[11px] text-slate-400 flex items-center space-x-1">
+                                    <span>Car:</span>
+                                    <input type="number" id="mp-lobby-score-contestant-win" step="1" onchange="mpUpdateLobbyScoring()" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs font-extrabold text-white focus:outline-none focus:border-emerald-500">
+                                </label>
+                                <label class="text-[11px] text-slate-400 flex items-center space-x-1">
+                                    <span>Goat:</span>
+                                    <input type="number" id="mp-lobby-score-contestant-goat" step="1" onchange="mpUpdateLobbyScoring()" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs font-extrabold text-white focus:outline-none focus:border-rose-500">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-2">
+                            <span class="text-xs font-bold text-amber-300">🎙️ Gameshow Host</span>
+                            <div class="flex items-center space-x-2">
+                                <label class="text-[11px] text-slate-400 flex items-center space-x-1">
+                                    <span>Car:</span>
+                                    <input type="number" id="mp-lobby-score-host-win" step="1" onchange="mpUpdateLobbyScoring()" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs font-extrabold text-white focus:outline-none focus:border-amber-500">
+                                </label>
+                                <label class="text-[11px] text-slate-400 flex items-center space-x-1">
+                                    <span>Goat:</span>
+                                    <input type="number" id="mp-lobby-score-host-goat" step="1" onchange="mpUpdateLobbyScoring()" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-center text-xs font-extrabold text-white focus:outline-none focus:border-amber-500">
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -717,7 +796,97 @@
             </div>
         </section>
 
-        <!-- 3. MULTIPLAYER ACTIVE SESSION: WAITING ROOM / RE-PAIRING SCREEN -->
+        <!-- 3A. MULTIPLAYER PROJECTOR LIVE LEADERBOARD (HOST SPECTATOR / PROJECTOR SCREEN) -->
+        <section id="mp-projector-screen" class="hidden max-w-6xl mx-auto space-y-6">
+            <!-- Top Projector Header Bar -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border-2 border-amber-500/40 rounded-2xl p-4 sm:p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-wider">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>📺 LIVE PROJECTOR LEADERBOARD</span>
+                        </span>
+                        <span id="mp-proj-scoring-pill" class="text-xs text-slate-300 bg-slate-950/80 border border-slate-800 px-2.5 py-0.5 rounded-full font-medium">
+                            Contestant: +1 Car / -1 Goat
+                        </span>
+                    </div>
+                    <h2 class="title-font text-xl sm:text-3xl font-black text-white tracking-tight">The Monty Hall Showdown</h2>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <!-- Room Code for Late Joiners -->
+                    <div class="bg-slate-950 border border-indigo-500/40 rounded-xl px-4 py-2 text-center">
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block">Join Code</span>
+                        <span id="mp-proj-code" class="title-font text-2xl sm:text-3xl font-black text-white font-mono tracking-widest">----</span>
+                    </div>
+
+                    <!-- Large Countdown Timer -->
+                    <div class="bg-slate-950 border border-amber-500/50 rounded-xl px-5 py-2 text-center shadow-lg shadow-amber-500/10">
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Time Left</span>
+                        <span id="mp-proj-timer" class="title-font text-2xl sm:text-4xl font-black text-amber-400 font-mono">05:00</span>
+                    </div>
+
+                    <!-- Projector Quick Controls -->
+                    <div class="flex flex-col gap-1.5">
+                        <button onclick="toggleFullscreen()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition">
+                            ⛶ Fullscreen
+                        </button>
+                        <button onclick="mpForceEndSession()" class="px-3 py-1.5 rounded-lg bg-rose-600/25 hover:bg-rose-600/40 text-rose-300 border border-rose-500/40 text-xs font-bold transition">
+                            ⏹ End Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Projector Grid: Giant Live Leaderboard + Live Class Pulse -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left 2 Columns: Giant Live Leaderboard -->
+                <div class="lg:col-span-2 bg-slate-900/95 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-2xl">🏆</span>
+                            <h3 class="title-font text-lg sm:text-xl font-black text-amber-400 tracking-wide">LIVE STANDINGS</h3>
+                        </div>
+                        <span id="mp-proj-player-count" class="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-xs font-bold text-slate-300">
+                            0 Players
+                        </span>
+                    </div>
+
+                    <div id="mp-proj-leaderboard" class="space-y-2.5">
+                        <!-- High-visibility leaderboard rows rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Live Experiment Tracker & Active Matches -->
+                <div class="space-y-6">
+                    <!-- Live Class Probability Pulse -->
+                    <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <h3 class="title-font text-sm font-black text-emerald-400 uppercase tracking-wider">📊 Live Class Results</h3>
+                            <span id="mp-proj-games-count" class="text-xs font-bold text-slate-400">0 Games</span>
+                        </div>
+
+                        <div id="mp-proj-experiment-stats" class="space-y-3 text-xs">
+                            <!-- Switch vs Stay live bars rendered dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Live Pairings Feed -->
+                    <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <h3 class="title-font text-sm font-black text-indigo-300 uppercase tracking-wider">🎬 Active Matches</h3>
+                            <span id="mp-proj-matches-count" class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-xs font-extrabold">0</span>
+                        </div>
+
+                        <div id="mp-proj-matches-list" class="space-y-2 text-xs max-h-80 overflow-y-auto">
+                            <p class="text-slate-500 italic">Waiting for matches to begin...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3B. MULTIPLAYER ACTIVE SESSION: WAITING ROOM / RE-PAIRING SCREEN (FOR PLAYERS) -->
         <section id="mp-waiting-screen" class="hidden max-w-5xl mx-auto space-y-6">
             <!-- Top Session Bar -->
             <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
@@ -735,7 +904,7 @@
                 <div class="flex items-center space-x-3">
                     <div class="bg-slate-950 border border-amber-500/40 rounded-xl px-4 py-2 text-center">
                         <span class="text-[10px] uppercase font-bold text-slate-400 block">Time Left</span>
-                        <span id="mp-wait-timer" class="title-font text-xl sm:text-2xl font-black text-amber-400 font-mono">03:00</span>
+                        <span id="mp-wait-timer" class="title-font text-xl sm:text-2xl font-black text-amber-400 font-mono">05:00</span>
                     </div>
                     <div class="bg-slate-950 border border-emerald-500/40 rounded-xl px-4 py-2 text-center">
                         <span class="text-[10px] uppercase font-bold text-slate-400 block">Your Score</span>
@@ -799,8 +968,8 @@
                             <span class="mx-1.5 text-slate-600">vs</span>
                             🧍 Contestant: <strong id="mp-match-contestant-name" class="text-emerald-300">---</strong>
                         </div>
-                        <div class="text-[11px] text-slate-400 mt-0.5">
-                            Scoring: <span class="text-emerald-400 font-semibold">Contestant wins Car = +1 pt</span> • <span class="text-amber-400 font-semibold">Contestant gets Goat = +1 pt to Host</span>
+                        <div id="mp-match-scoring-summary" class="text-[11px] text-slate-400 mt-0.5">
+                            Scoring: <span class="text-emerald-400 font-semibold">Contestant (+1 Car / -1 Goat)</span> • <span class="text-amber-400 font-semibold">Host (0 Car / 0 Goat)</span>
                         </div>
                     </div>
                 </div>
@@ -808,7 +977,7 @@
                 <div class="flex items-center space-x-3">
                     <div class="bg-slate-950 border border-amber-500/40 rounded-xl px-4 py-1.5 text-center">
                         <span class="text-[10px] uppercase font-bold text-slate-400 block">Time Left</span>
-                        <span id="mp-match-timer" class="title-font text-lg sm:text-xl font-black text-amber-400 font-mono">03:00</span>
+                        <span id="mp-match-timer" class="title-font text-lg sm:text-xl font-black text-amber-400 font-mono">05:00</span>
                     </div>
                     <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-1.5 text-center">
                         <span class="text-[10px] uppercase font-bold text-slate-400 block">Your Score</span>
@@ -909,7 +1078,7 @@
             </div>
         </section>
 
-        <!-- 5. MULTIPLAYER SESSION ENDED: PODIUM & FINAL WINNERS -->
+        <!-- 5. MULTIPLAYER SESSION ENDED: PODIUM, EXPERIMENT STATS & CSV EXPORT -->
         <section id="mp-podium-screen" class="hidden max-w-4xl mx-auto space-y-6 py-4">
             <div class="bg-gradient-to-b from-slate-800/95 to-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
                 <div class="space-y-2">
@@ -923,6 +1092,40 @@
                 <!-- 1st, 2nd, 3rd Place Podium Cards -->
                 <div id="mp-podium-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end max-w-3xl mx-auto pt-2">
                     <!-- Rendered dynamically -->
+                </div>
+
+                <!-- Two-Way Frequency Table: Switch vs Stay Experiment Results -->
+                <div class="bg-slate-950/90 border border-slate-800 rounded-2xl overflow-hidden text-left max-w-2xl mx-auto shadow-lg">
+                    <div class="px-4 py-3.5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900/60">
+                        <div>
+                            <h3 class="title-font text-xs sm:text-sm font-extrabold uppercase tracking-wider text-amber-400">📊 Strategy Experiment Results (Two-Way Table)</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Frequencies of contestant choices and outcomes across all room games</p>
+                        </div>
+                        <button onclick="mpDownloadCSVData()" class="shrink-0 px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center justify-center space-x-1.5">
+                            <span>📥 Download CSV Data</span>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs sm:text-sm text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/90 text-slate-300 border-b border-slate-800 text-[11px] uppercase tracking-wider">
+                                    <th class="px-4 py-3 font-extrabold text-amber-400">Strategy</th>
+                                    <th class="px-4 py-3 text-center font-bold text-emerald-400">🚗 Car (Win)</th>
+                                    <th class="px-4 py-3 text-center font-bold text-rose-400">🐐 Goat (Lose)</th>
+                                    <th class="px-4 py-3 text-center font-bold text-slate-200">Total</th>
+                                    <th class="px-4 py-3 text-right font-bold text-amber-300">Win Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mp-two-way-table-body" class="divide-y divide-slate-800/70">
+                                <!-- Rendered dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="mp-experiment-summary" class="px-4 py-2.5 bg-slate-900/50 border-t border-slate-800/80 text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
+                        <!-- Rendered dynamically -->
+                    </div>
                 </div>
 
                 <!-- Full Leaderboard Table -->
@@ -1074,6 +1277,22 @@
             return String(str).replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
+        }
+
+        function csvEscape(val) {
+            const s = String(val ?? '');
+            return `"${s.replace(/"/g, '""')}"`;
+        }
+
+        function formatSignedPts(n) {
+            const val = Number(n) || 0;
+            return val > 0 ? `+${val}` : `${val}`;
+        }
+
+        function formatPtsLabel(n) {
+            const val = Number(n) || 0;
+            const abs = Math.abs(val);
+            return `${val} pt${abs === 1 ? '' : 's'}`;
         }
 
         function svgToDataUri(svg) {
@@ -1649,6 +1868,13 @@
         /* ====================================================================
            MULTI-DEVICE MULTIPLAYER GAME ROOM ENGINE (MQTT OVER WEBSOCKETS)
            ==================================================================== */
+        const DEFAULT_MP_SCORING = {
+            contestantWin: 1,
+            contestantGoat: -1,
+            hostWin: 0,
+            hostGoat: 0
+        };
+
         const mp = {
             client: null,
             connected: false,
@@ -1669,13 +1895,72 @@
             state: {
                 seq: 0,
                 status: 'NONE', // 'NONE', 'LOBBY', 'PLAYING', 'ENDED'
-                totalDurationSec: 180,
-                remainingSec: 180,
+                totalDurationSec: 300,
+                remainingSec: 300,
+                scoring: { ...DEFAULT_MP_SCORING },
                 totalMatchesPlayed: 0,
+                matchHistory: [], // Array of completed games in this session
                 players: {}, // id -> { id, name, score, wins, matchesPlayed, status: 'WAITING' | 'IN_MATCH', matchId, lastSeen, lastPartnerId }
-                matches: {}  // matchId -> { id, hostId, hostName, contestantId, contestantName, step: 'HIDE_CAR'|'CONTESTANT_PICK'|'HOST_OPEN_GOAT'|'CONTESTANT_DECIDE'|'RESULT', carDoor, initialPick, hostDoor, finalAction, finalPick, isWin, pointWinnerId, resolvedAt }
+                matches: {}  // matchId -> { id, hostId, hostName, contestantId, contestantName, step: 'HIDE_CAR'|'CONTESTANT_PICK'|'HOST_OPEN_GOAT'|'CONTESTANT_DECIDE'|'RESULT', carDoor, initialPick, hostDoor, finalAction, finalPick, isWin, contestantDelta, hostDelta, resolvedAt }
             }
         };
+
+        function mpGetScoringRules() {
+            const s = mp.state.scoring || DEFAULT_MP_SCORING;
+            return {
+                contestantWin: Number.isFinite(Number(s.contestantWin)) ? Number(s.contestantWin) : 1,
+                contestantGoat: Number.isFinite(Number(s.contestantGoat)) ? Number(s.contestantGoat) : -1,
+                hostWin: Number.isFinite(Number(s.hostWin)) ? Number(s.hostWin) : 0,
+                hostGoat: Number.isFinite(Number(s.hostGoat)) ? Number(s.hostGoat) : 0
+            };
+        }
+
+        function mpReadScoringFromInputs(prefix) {
+            const readInt = (id, fallback) => {
+                const el = document.getElementById(id);
+                if (!el || el.value.trim() === '') return fallback;
+                const parsed = parseInt(el.value, 10);
+                return Number.isNaN(parsed) ? fallback : parsed;
+            };
+            return {
+                contestantWin: readInt(`${prefix}-contestant-win`, 1),
+                contestantGoat: readInt(`${prefix}-contestant-goat`, -1),
+                hostWin: readInt(`${prefix}-host-win`, 0),
+                hostGoat: readInt(`${prefix}-host-goat`, 0)
+            };
+        }
+
+        function mpWriteScoringToInputs(prefix, rules) {
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el && document.activeElement !== el) {
+                    el.value = val;
+                }
+            };
+            setVal(`${prefix}-contestant-win`, rules.contestantWin);
+            setVal(`${prefix}-contestant-goat`, rules.contestantGoat);
+            setVal(`${prefix}-host-win`, rules.hostWin);
+            setVal(`${prefix}-host-goat`, rules.hostGoat);
+        }
+
+        function mpResetDefaultScoringInputs(prefix) {
+            mpWriteScoringToInputs(prefix, DEFAULT_MP_SCORING);
+        }
+
+        function mpUpdateLobbyScoring() {
+            if (!mp.isRoomOrganizer || mp.state.status !== 'LOBBY') return;
+            mp.state.scoring = mpReadScoringFromInputs('mp-lobby-score');
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        function mpResetLobbyScoringToDefault() {
+            if (!mp.isRoomOrganizer || mp.state.status !== 'LOBBY') return;
+            mp.state.scoring = { ...DEFAULT_MP_SCORING };
+            mpWriteScoringToInputs('mp-lobby-score', mp.state.scoring);
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
 
         function formatSecondsMMSS(totalSec) {
             const s = Math.max(0, Math.floor(totalSec));
@@ -1721,14 +2006,16 @@
             mp.state.status = 'NONE';
             mp.state.players = {};
             mp.state.matches = {};
+            mp.state.matchHistory = [];
             document.getElementById('mp-join-status').classList.add('hidden');
             renderMultiplayerView();
         }
 
         function mpCreateRoom() {
             const nameInput = document.getElementById('mp-host-name').value.trim() || 'Room Host';
-            const durationSec = parseInt(document.getElementById('mp-duration-select').value, 10) || 180;
+            const durationSec = parseInt(document.getElementById('mp-duration-select').value, 10) || 300;
             const hostPlays = document.getElementById('mp-host-plays').checked;
+            const scoringRules = mpReadScoringFromInputs('mp-score');
 
             mpCleanupConnection();
             mp.isRoomOrganizer = true;
@@ -1743,7 +2030,9 @@
                 status: 'LOBBY',
                 totalDurationSec: durationSec,
                 remainingSec: durationSec,
+                scoring: scoringRules,
                 totalMatchesPlayed: 0,
+                matchHistory: [],
                 players: {},
                 matches: {}
             };
@@ -2032,13 +2321,11 @@
 
                     if (!isListedInRoom) {
                         if (!mp.hasBeenRegisteredInRoom) {
-                            // Host hasn't processed our JOIN_REQ yet; re-send JOIN_REQ if needed and keep waiting
                             if (Date.now() - mp.lastJoinReqSentAt > 1200) {
                                 mpSendJoinRequest();
                             }
                             return;
                         } else if (msg.state.status !== 'NONE') {
-                            // We were previously registered, so we were genuinely disconnected/removed
                             mpCleanupConnection();
                             mp.roomCode = null;
                             mp.state.status = 'NONE';
@@ -2048,7 +2335,6 @@
                         }
                     }
 
-                    // Successfully registered in the room!
                     mp.hasBeenRegisteredInRoom = true;
                     clearTimeout(mp.joinTimeout);
                     document.getElementById('mp-join-status').classList.add('hidden');
@@ -2105,9 +2391,11 @@
                 return;
             }
 
+            mp.state.scoring = mpReadScoringFromInputs('mp-lobby-score');
             mp.state.status = 'PLAYING';
             mp.state.remainingSec = mp.state.totalDurationSec;
             mp.state.totalMatchesPlayed = 0;
+            mp.state.matchHistory = [];
             mp.state.matches = {};
 
             playerIds.forEach(id => {
@@ -2168,6 +2456,7 @@
             mp.state.status = 'LOBBY';
             mp.state.remainingSec = mp.state.totalDurationSec;
             mp.state.totalMatchesPlayed = 0;
+            mp.state.matchHistory = [];
             mp.state.matches = {};
             Object.keys(mp.state.players).forEach(id => {
                 mp.state.players[id].score = 0;
@@ -2239,7 +2528,8 @@
                         finalAction: null,
                         finalPick: null,
                         isWin: null,
-                        pointWinnerId: null,
+                        contestantDelta: 0,
+                        hostDelta: 0,
                         resolvedAt: null
                     };
 
@@ -2317,29 +2607,53 @@
             const finalPick = (action === 'STICK') ? m.initialPick : switchDoor;
             const isWin = (finalPick === m.carDoor);
 
+            const rules = mpGetScoringRules();
+            const contestantDelta = isWin ? rules.contestantWin : rules.contestantGoat;
+            const hostDelta = isWin ? rules.hostWin : rules.hostGoat;
+
             m.finalAction = action;
             m.finalPick = finalPick;
             m.isWin = isWin;
+            m.contestantDelta = contestantDelta;
+            m.hostDelta = hostDelta;
             m.step = 'RESULT';
             m.resolvedAt = Date.now();
-            m.pointWinnerId = isWin ? m.contestantId : m.hostId;
 
             if (mp.state.players[m.contestantId]) {
                 mp.state.players[m.contestantId].matchesPlayed++;
+                mp.state.players[m.contestantId].score += contestantDelta;
                 if (isWin) {
-                    mp.state.players[m.contestantId].score += 1;
                     mp.state.players[m.contestantId].wins += 1;
                 }
             }
             if (mp.state.players[m.hostId]) {
                 mp.state.players[m.hostId].matchesPlayed++;
+                mp.state.players[m.hostId].score += hostDelta;
                 if (!isWin) {
-                    mp.state.players[m.hostId].score += 1;
                     mp.state.players[m.hostId].wins += 1;
                 }
             }
 
             mp.state.totalMatchesPlayed++;
+
+            if (!Array.isArray(mp.state.matchHistory)) {
+                mp.state.matchHistory = [];
+            }
+
+            mp.state.matchHistory.push({
+                gameNumber: mp.state.totalMatchesPlayed,
+                hostName: m.hostName,
+                contestantName: m.contestantName,
+                carDoor: m.carDoor,
+                initialPick: m.initialPick,
+                hostDoor: m.hostDoor,
+                finalPick: finalPick,
+                strategy: action === 'SWITCH' ? 'Switch' : 'Stay',
+                isWin: isWin,
+                outcome: isWin ? 'Car (Win)' : 'Goat (Lose)',
+                contestantDelta: contestantDelta,
+                hostDelta: hostDelta
+            });
 
             gameState.history.unshift({
                 round: gameState.roundNumber++,
@@ -2445,8 +2759,10 @@
             const formatted = formatSecondsMMSS(mp.state.remainingSec);
             const waitTimer = document.getElementById('mp-wait-timer');
             const matchTimer = document.getElementById('mp-match-timer');
+            const projTimer = document.getElementById('mp-proj-timer');
             if (waitTimer) waitTimer.textContent = formatted;
             if (matchTimer) matchTimer.textContent = formatted;
+            if (projTimer) projTimer.textContent = formatted;
         }
 
         function mpGetSortedLeaderboard() {
@@ -2457,10 +2773,35 @@
             });
         }
 
+        function mpRenderScoringSummaryText() {
+            const r = mpGetScoringRules();
+            const hostHasPoints = (r.hostWin !== 0 || r.hostGoat !== 0);
+
+            const lobbyText = document.getElementById('mp-lobby-scoring-text');
+            if (lobbyText) {
+                lobbyText.innerHTML = hostHasPoints
+                    ? `<strong>Contestant:</strong> ${formatSignedPts(r.contestantWin)} Car, ${formatSignedPts(r.contestantGoat)} Goat.<br><strong>Gameshow Host:</strong> ${formatSignedPts(r.hostWin)} Car, ${formatSignedPts(r.hostGoat)} Goat.`
+                    : `<strong>Contestant:</strong> ${formatSignedPts(r.contestantWin)} Car, ${formatSignedPts(r.contestantGoat)} Goat.<br><strong>Gameshow Host:</strong> 0 pts (no points).`;
+            }
+
+            const matchSummary = document.getElementById('mp-match-scoring-summary');
+            if (matchSummary) {
+                matchSummary.innerHTML = `Scoring: <span class="text-emerald-400 font-semibold">Contestant (${formatSignedPts(r.contestantWin)} Car / ${formatSignedPts(r.contestantGoat)} Goat)</span> • <span class="text-amber-400 font-semibold">Host (${formatSignedPts(r.hostWin)} Car / ${formatSignedPts(r.hostGoat)} Goat)</span>`;
+            }
+
+            const projPill = document.getElementById('mp-proj-scoring-pill');
+            if (projPill) {
+                projPill.textContent = hostHasPoints
+                    ? `Contestant: ${formatSignedPts(r.contestantWin)} / ${formatSignedPts(r.contestantGoat)} • Host: ${formatSignedPts(r.hostWin)} / ${formatSignedPts(r.hostGoat)}`
+                    : `Contestant: ${formatSignedPts(r.contestantWin)} Car / ${formatSignedPts(r.contestantGoat)} Goat • Host: 0 pts`;
+            }
+        }
+
         function renderMultiplayerView() {
             const screens = [
                 'mp-setup-screen',
                 'mp-lobby-screen',
+                'mp-projector-screen',
                 'mp-waiting-screen',
                 'mp-match-screen',
                 'mp-podium-screen'
@@ -2474,11 +2815,22 @@
                 return;
             }
 
+            mpRenderScoringSummaryText();
+
             if (status === 'LOBBY') {
                 document.getElementById('mp-lobby-screen').classList.remove('hidden');
                 document.getElementById('mp-lobby-code').textContent = mp.roomCode || '----';
                 document.getElementById('mp-lobby-link').textContent = mpGetShareLink();
                 document.getElementById('mp-lobby-duration-badge').textContent = formatSecondsMMSS(mp.state.totalDurationSec);
+
+                const projBadge = document.getElementById('mp-lobby-projector-badge');
+                if (projBadge) {
+                    projBadge.classList.toggle('hidden', !(mp.isRoomOrganizer && !mp.organizerPlays));
+                }
+
+                if (mp.isRoomOrganizer) {
+                    mpWriteScoringToInputs('mp-lobby-score', mpGetScoringRules());
+                }
 
                 const players = Object.values(mp.state.players);
                 document.getElementById('mp-lobby-player-count').textContent = players.length;
@@ -2507,6 +2859,7 @@
                     }).join('');
                 }
 
+                document.getElementById('mp-lobby-scoring-editor').classList.toggle('hidden', !mp.isRoomOrganizer);
                 document.getElementById('mp-lobby-host-controls').classList.toggle('hidden', !mp.isRoomOrganizer);
                 document.getElementById('mp-lobby-guest-notice').classList.toggle('hidden', mp.isRoomOrganizer);
                 const startBtn = document.getElementById('mp-start-session-btn');
@@ -2519,6 +2872,12 @@
 
             if (status === 'PLAYING') {
                 mpUpdateTimerDisplays();
+
+                if (mp.isRoomOrganizer && !mp.organizerPlays) {
+                    renderMultiplayerProjectorScreen();
+                    return;
+                }
+
                 const myMatch = mpGetMyActiveMatch();
 
                 if (myMatch) {
@@ -2534,6 +2893,145 @@
             }
         }
 
+        function renderMultiplayerProjectorScreen() {
+            document.getElementById('mp-projector-screen').classList.remove('hidden');
+            document.getElementById('mp-proj-code').textContent = mp.roomCode || '----';
+
+            const leaderboard = mpGetSortedLeaderboard();
+            document.getElementById('mp-proj-player-count').textContent = `${leaderboard.length} Player${leaderboard.length === 1 ? '' : 's'}`;
+
+            const lbContainer = document.getElementById('mp-proj-leaderboard');
+            if (leaderboard.length === 0) {
+                lbContainer.innerHTML = `<div class="text-center text-sm text-slate-500 py-8 italic">No players in the room yet. Share code ${esc(mp.roomCode)} to join!</div>`;
+            } else {
+                lbContainer.innerHTML = leaderboard.map((p, idx) => {
+                    const rankDisplay = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+                    const rowStyle = idx === 0
+                        ? 'bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-slate-950 border-amber-400/70 shadow-lg shadow-amber-500/10'
+                        : idx === 1
+                            ? 'bg-slate-950/95 border-slate-400/50'
+                            : idx === 2
+                                ? 'bg-slate-950/95 border-amber-700/50'
+                                : 'bg-slate-950/80 border-slate-800';
+
+                    const scoreColor = p.score > 0
+                        ? 'text-emerald-400'
+                        : p.score < 0
+                            ? 'text-rose-400'
+                            : 'text-amber-400';
+
+                    let statusPill = `<span class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-[11px] font-semibold text-slate-400">⏳ Waiting</span>`;
+                    if (p.status === 'IN_MATCH' && p.matchId && mp.state.matches[p.matchId]) {
+                        const match = mp.state.matches[p.matchId];
+                        if (match.hostId === p.id) {
+                            statusPill = `<span class="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[11px] font-bold text-amber-300">🎙️ Host vs ${esc(match.contestantName)}</span>`;
+                        } else {
+                            statusPill = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">🧍 Contestant vs ${esc(match.hostName)}</span>`;
+                        }
+                    }
+
+                    return `
+                        <div class="rounded-2xl border-2 ${rowStyle} px-4 py-3 sm:px-5 sm:py-3.5 flex items-center justify-between gap-3 transition">
+                            <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
+                                <span class="title-font text-xl sm:text-2xl font-black w-9 text-center shrink-0 text-slate-200">${rankDisplay}</span>
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="title-font text-base sm:text-xl font-extrabold text-white truncate">${esc(p.name)}</span>
+                                        ${statusPill}
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-0.5">
+                                        ${p.wins} win${p.wins === 1 ? '' : 's'} in ${p.matchesPlayed} game${p.matchesPlayed === 1 ? '' : 's'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-right shrink-0">
+                                <span class="title-font text-2xl sm:text-3xl font-black ${scoreColor}">${formatSignedPts(p.score)}</span>
+                                <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500">pts</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Live Class Switch vs Stay Experiment Pulse
+            const matchHistory = Array.isArray(mp.state.matchHistory) ? mp.state.matchHistory : [];
+            document.getElementById('mp-proj-games-count').textContent = `${matchHistory.length} Game${matchHistory.length === 1 ? '' : 's'}`;
+
+            let switchWins = 0, switchTotal = 0, stayWins = 0, stayTotal = 0;
+            matchHistory.forEach(rec => {
+                if (rec.strategy === 'Switch') {
+                    switchTotal++;
+                    if (rec.isWin) switchWins++;
+                } else {
+                    stayTotal++;
+                    if (rec.isWin) stayWins++;
+                }
+            });
+
+            const switchPct = switchTotal > 0 ? ((switchWins / switchTotal) * 100).toFixed(1) : '0.0';
+            const stayPct = stayTotal > 0 ? ((stayWins / stayTotal) * 100).toFixed(1) : '0.0';
+
+            document.getElementById('mp-proj-experiment-stats').innerHTML = `
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-emerald-300">🔄 Switch Strategy</span>
+                        <span class="title-font font-black text-base text-emerald-400">${switchPct}%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                        <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style="width: ${switchTotal > 0 ? switchPct : 0}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>${switchWins} / ${switchTotal} Cars Won</span>
+                        <span>Theory: 66.7%</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-blue-300">🔒 Stay Strategy</span>
+                        <span class="title-font font-black text-base text-blue-400">${stayPct}%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                        <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-400 transition-all duration-300" style="width: ${stayTotal > 0 ? stayPct : 0}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>${stayWins} / ${stayTotal} Cars Won</span>
+                        <span>Theory: 33.3%</span>
+                    </div>
+                </div>
+            `;
+
+            // Active Matches Feed
+            const activeMatches = Object.values(mp.state.matches);
+            document.getElementById('mp-proj-matches-count').textContent = activeMatches.length;
+            const matchesList = document.getElementById('mp-proj-matches-list');
+
+            if (activeMatches.length === 0) {
+                matchesList.innerHTML = '<p class="text-slate-500 italic">Pairing players for the next round...</p>';
+            } else {
+                const stepLabels = {
+                    HIDE_CAR: '1. Hiding car',
+                    CONTESTANT_PICK: '2. Picking door',
+                    HOST_OPEN_GOAT: '3. Opening goat',
+                    CONTESTANT_DECIDE: '4. Stick / Switch',
+                    RESULT: '5. Round complete!'
+                };
+                matchesList.innerHTML = activeMatches.map(m => `
+                    <div class="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+                        <div class="min-w-0 truncate">
+                            <span class="text-amber-300 font-bold">🎙️ ${esc(m.hostName)}</span>
+                            <span class="text-slate-500 mx-1">vs</span>
+                            <span class="text-emerald-300 font-bold">🧍 ${esc(m.contestantName)}</span>
+                        </div>
+                        <span class="shrink-0 px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] text-slate-300 font-bold">
+                            ${stepLabels[m.step] || m.step}
+                        </span>
+                    </div>
+                `).join('');
+            }
+        }
+
         function renderMultiplayerWaitingScreen() {
             document.getElementById('mp-waiting-screen').classList.remove('hidden');
             document.getElementById('mp-wait-code').textContent = mp.roomCode || '----';
@@ -2546,10 +3044,7 @@
             const titleEl = document.getElementById('mp-wait-status-title');
             const descEl = document.getElementById('mp-wait-status-desc');
 
-            if (!me && mp.isRoomOrganizer && !mp.organizerPlays) {
-                titleEl.textContent = 'Organiser Spectator View';
-                descEl.textContent = 'You are organising this room while players pair up and compete live below.';
-            } else if (waitingPlayers.length === 1) {
+            if (waitingPlayers.length === 1) {
                 titleEl.textContent = 'You are next in line! ⏳';
                 descEl.textContent = 'There is currently an odd number of players in the room. You will be paired automatically the moment the next match finishes!';
             } else {
@@ -2596,7 +3091,7 @@
                             <span class="font-bold w-6 text-center shrink-0">${medal}</span>
                             <span class="font-bold text-white truncate">${esc(p.name)}${isMe ? ' (You)' : ''}</span>
                         </div>
-                        <span class="title-font font-black text-amber-400 text-sm shrink-0">${p.score} pt${p.score === 1 ? '' : 's'}</span>
+                        <span class="title-font font-black text-amber-400 text-sm shrink-0">${formatPtsLabel(p.score)}</span>
                     </div>
                 `;
             }).join('');
@@ -2627,11 +3122,12 @@
                 if (m.step === 'HOST_OPEN_GOAT' || m.step === 'CONTESTANT_DECIDE') {
                     playSound('open');
                 } else if (m.step === 'RESULT') {
-                    const iScored = (m.pointWinnerId === mp.myId);
-                    if (iScored) {
+                    const myDelta = amIHost ? (Number(m.hostDelta) || 0) : (Number(m.contestantDelta) || 0);
+                    const positiveOutcome = myDelta > 0 || (myDelta === 0 && !amIHost && m.isWin);
+                    if (positiveOutcome) {
                         playSound('win');
                         triggerConfetti();
-                    } else {
+                    } else if (myDelta < 0 || (!amIHost && !m.isWin)) {
                         playSound('lose');
                     }
                 }
@@ -2726,12 +3222,19 @@
             } else if (m.step === 'RESULT') {
                 stepBadge.textContent = 'MATCH COMPLETE';
                 resultControls.classList.remove('hidden');
+
+                const cDelta = Number(m.contestantDelta) || 0;
+                const hDelta = Number(m.hostDelta) || 0;
+                const scoreSummary = (hDelta !== 0)
+                    ? `(${esc(m.contestantName)}: ${formatSignedPts(cDelta)} pt${Math.abs(cDelta) === 1 ? '' : 's'}, ${esc(m.hostName)}: ${formatSignedPts(hDelta)} pt${Math.abs(hDelta) === 1 ? '' : 's'})`
+                    : `(${formatSignedPts(cDelta)} pt${Math.abs(cDelta) === 1 ? '' : 's'} to ${esc(m.contestantName)})`;
+
                 if (m.isWin) {
                     promptIcon.textContent = '🎉';
-                    promptEl.innerHTML = `<span class="text-emerald-400">${esc(m.contestantName)}</span> ${m.finalAction === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${m.finalPick} and won the <span class="text-amber-400">Sports Car! (+1 Point to ${esc(m.contestantName)})</span>`;
+                    promptEl.innerHTML = `<span class="text-emerald-400">${esc(m.contestantName)}</span> ${m.finalAction === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${m.finalPick} and won the <span class="text-amber-400">Sports Car! ${scoreSummary}</span>`;
                 } else {
                     promptIcon.textContent = '🐐';
-                    promptEl.innerHTML = `<span class="text-rose-400">${esc(m.contestantName)}</span> ${m.finalAction === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${m.finalPick} and got a Goat! <span class="text-amber-400">(+1 Point to ${esc(m.hostName)})</span>`;
+                    promptEl.innerHTML = `<span class="text-rose-400">${esc(m.contestantName)}</span> ${m.finalAction === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${m.finalPick} and got a Goat! <span class="text-amber-400">${scoreSummary}</span>`;
                 }
             }
         }
@@ -2739,7 +3242,9 @@
         function renderMultiplayerPodiumScreen() {
             document.getElementById('mp-podium-screen').classList.remove('hidden');
             const leaderboard = mpGetSortedLeaderboard();
-            document.getElementById('mp-final-total-matches').textContent = `${mp.state.totalMatchesPlayed || 0} Total Matches`;
+            const matchHistory = Array.isArray(mp.state.matchHistory) ? mp.state.matchHistory : [];
+            const totalCompleted = matchHistory.length || mp.state.totalMatchesPlayed || 0;
+            document.getElementById('mp-final-total-matches').textContent = `${totalCompleted} Total Match${totalCompleted === 1 ? '' : 'es'}`;
 
             const podiumContainer = document.getElementById('mp-podium-cards');
             const subtitle = document.getElementById('mp-podium-subtitle');
@@ -2752,7 +3257,7 @@
                 const second = leaderboard[1] || null;
                 const third = leaderboard[2] || null;
 
-                subtitle.innerHTML = `🏆 Winner: <strong class="text-amber-400">${esc(first.name)}</strong> with <strong>${first.score} point${first.score === 1 ? '' : 's'}</strong>!`;
+                subtitle.innerHTML = `🏆 Winner: <strong class="text-amber-400">${esc(first.name)}</strong> with <strong>${formatPtsLabel(first.score)}</strong>!`;
 
                 const slots = [];
                 if (second) slots.push({ place: 2, medal: '🥈', label: '2nd Place', player: second, heightClass: 'sm:h-44', borderClass: 'border-slate-400/50 bg-slate-900/95', titleColor: 'text-slate-200' });
@@ -2765,10 +3270,75 @@
                         <div class="text-[11px] font-black uppercase tracking-wider ${s.titleColor}">${s.label}</div>
                         <div class="title-font text-lg sm:text-xl font-black text-white truncate max-w-full">${esc(s.player.name)}</div>
                         <div class="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-xs font-extrabold text-amber-400">
-                            ${s.player.score} Point${s.player.score === 1 ? '' : 's'}
+                            ${formatPtsLabel(s.player.score)}
                         </div>
                     </div>
                 `).join('');
+            }
+
+            // Render Two-Way Frequency Table (Switch vs Stay × Car vs Goat)
+            let switchCar = 0;
+            let switchGoat = 0;
+            let stayCar = 0;
+            let stayGoat = 0;
+
+            matchHistory.forEach(rec => {
+                if (rec.strategy === 'Switch') {
+                    if (rec.isWin) switchCar++;
+                    else switchGoat++;
+                } else {
+                    if (rec.isWin) stayCar++;
+                    else stayGoat++;
+                }
+            });
+
+            const switchTotal = switchCar + switchGoat;
+            const stayTotal = stayCar + stayGoat;
+            const totalCar = switchCar + stayCar;
+            const totalGoat = switchGoat + stayGoat;
+            const grandTotal = switchTotal + stayTotal;
+
+            const switchPct = switchTotal > 0 ? `${((switchCar / switchTotal) * 100).toFixed(1)}%` : '—';
+            const stayPct = stayTotal > 0 ? `${((stayCar / stayTotal) * 100).toFixed(1)}%` : '—';
+            const totalPct = grandTotal > 0 ? `${((totalCar / grandTotal) * 100).toFixed(1)}%` : '—';
+
+            const twoWayBody = document.getElementById('mp-two-way-table-body');
+            if (twoWayBody) {
+                twoWayBody.innerHTML = `
+                    <tr class="hover:bg-slate-900/50 transition">
+                        <td class="px-4 py-3 font-bold text-emerald-300">🔄 Switch</td>
+                        <td class="px-4 py-3 text-center font-extrabold text-emerald-400">${switchCar}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-rose-300">${switchGoat}</td>
+                        <td class="px-4 py-3 text-center font-bold text-slate-200 bg-slate-900/30">${switchTotal}</td>
+                        <td class="px-4 py-3 text-right font-black text-emerald-400">${switchPct}</td>
+                    </tr>
+                    <tr class="hover:bg-slate-900/50 transition">
+                        <td class="px-4 py-3 font-bold text-blue-300">🔒 Stay</td>
+                        <td class="px-4 py-3 text-center font-extrabold text-emerald-400">${stayCar}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-rose-300">${stayGoat}</td>
+                        <td class="px-4 py-3 text-center font-bold text-slate-200 bg-slate-900/30">${stayTotal}</td>
+                        <td class="px-4 py-3 text-right font-black text-blue-400">${stayPct}</td>
+                    </tr>
+                    <tr class="bg-slate-900/75 font-extrabold border-t-2 border-slate-700">
+                        <td class="px-4 py-3 text-slate-200 uppercase text-[11px] tracking-wider">Total</td>
+                        <td class="px-4 py-3 text-center text-emerald-300">${totalCar}</td>
+                        <td class="px-4 py-3 text-center text-rose-300">${totalGoat}</td>
+                        <td class="px-4 py-3 text-center text-amber-400">${grandTotal}</td>
+                        <td class="px-4 py-3 text-right text-slate-300">${totalPct}</td>
+                    </tr>
+                `;
+            }
+
+            const expSummary = document.getElementById('mp-experiment-summary');
+            if (expSummary) {
+                if (grandTotal === 0) {
+                    expSummary.innerHTML = `<span>No completed games were recorded during this session.</span><span>Theory: Switch 66.7% • Stay 33.3%</span>`;
+                } else {
+                    expSummary.innerHTML = `
+                        <span>Contestants switched in <strong class="text-slate-200">${switchTotal}</strong> of <strong class="text-slate-200">${grandTotal}</strong> games (${((switchTotal / grandTotal) * 100).toFixed(1)}%).</span>
+                        <span>Theoretical Win Rates: <strong class="text-emerald-400">Switch 66.7%</strong> • <strong class="text-blue-400">Stay 33.3%</strong></span>
+                    `;
+                }
             }
 
             const standingsList = document.getElementById('mp-final-standings-list');
@@ -2783,13 +3353,59 @@
                         </div>
                         <div class="flex items-center space-x-4 shrink-0">
                             <span class="text-slate-400">${p.wins}W / ${p.matchesPlayed}M</span>
-                            <span class="title-font font-black text-sm text-amber-400">${p.score} pts</span>
+                            <span class="title-font font-black text-sm text-amber-400">${formatPtsLabel(p.score)}</span>
                         </div>
                     </div>
                 `;
             }).join('');
 
             document.getElementById('mp-play-again-btn').classList.toggle('hidden', !mp.isRoomOrganizer);
+        }
+
+        function mpDownloadCSVData() {
+            const matchHistory = Array.isArray(mp.state.matchHistory) ? mp.state.matchHistory : [];
+            if (matchHistory.length === 0) {
+                alert('No completed multiplayer games are available to download yet.');
+                return;
+            }
+
+            const headers = [
+                'Game',
+                'Host Name',
+                'Contestant Name',
+                'Car Door',
+                'First Pick',
+                'Door Opened',
+                'Strategy',
+                'Outcome',
+                'Contestant Points',
+                'Host Points'
+            ];
+
+            const rows = matchHistory.map((rec, idx) => [
+                rec.gameNumber || (idx + 1),
+                csvEscape(rec.hostName),
+                csvEscape(rec.contestantName),
+                csvEscape(`Door ${rec.carDoor}`),
+                csvEscape(`Door ${rec.initialPick}`),
+                csvEscape(`Door ${rec.hostDoor}`),
+                csvEscape(rec.strategy),
+                csvEscape(rec.outcome),
+                rec.contestantDelta ?? (rec.isWin ? 1 : -1),
+                rec.hostDelta ?? 0
+            ]);
+
+            const csvString = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+            const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `monty_hall_multiplayer_room_${mp.roomCode || 'results'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         function mpCopyCode() {
