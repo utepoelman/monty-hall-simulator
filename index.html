@@ -8,6 +8,8 @@
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MQTT over WebSockets Client Library (for Multi-Device Game Rooms) -->
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -76,6 +78,11 @@
         .door-frame-card.is-selected {
             border-color: #F59E0B !important;
             box-shadow: 0 0 28px 6px rgba(245, 158, 11, 0.55);
+        }
+
+        .door-frame-card.is-car-secret {
+            border-color: #10B981 !important;
+            box-shadow: 0 0 24px 4px rgba(16, 185, 129, 0.35);
         }
 
         @keyframes doorRevealPop {
@@ -224,7 +231,7 @@
     <!-- Top Header Navigation -->
     <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="setGameMode('1P')">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-amber-500/20">
                     M
                 </div>
@@ -241,8 +248,9 @@
                 <button id="mode-1p-btn" onclick="setGameMode('1P')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow">
                     🤖 1 Player
                 </button>
-                <button id="mode-2p-btn" onclick="setGameMode('2P')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white">
-                    👥 2 Players
+                <button id="mode-mp-btn" onclick="setGameMode('MP')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white flex items-center space-x-1.5">
+                    <span>👥 Multiplayer Room</span>
+                    <span id="mp-live-pill" class="hidden w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 </button>
             </div>
 
@@ -271,8 +279,10 @@
         </div>
     </header>
 
-    <!-- Main Content Container -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 stage-glow">
+    <!-- ====================================================================
+         VIEW A: 1-PLAYER & SIMULATOR CONTAINER
+         ==================================================================== -->
+    <main id="single-player-view" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 stage-glow">
 
         <!-- Stage Host Banner / Dialogue Prompt -->
         <section class="relative rounded-2xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-slate-700/80 p-5 sm:p-6 shadow-2xl overflow-hidden backdrop-blur">
@@ -519,6 +529,427 @@
 
     </main>
 
+    <!-- ====================================================================
+         VIEW B: MULTI-DEVICE MULTIPLAYER GAME ROOM CONTAINER
+         ==================================================================== -->
+    <main id="multiplayer-view" class="hidden flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 stage-glow">
+
+        <!-- 1. MULTIPLAYER SETUP (CREATE ROOM OR JOIN WITH CODE / LINK) -->
+        <section id="mp-setup-screen" class="max-w-4xl mx-auto space-y-6 py-4">
+            <div class="text-center space-y-2">
+                <span class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold">
+                    <span>🌐</span><span>LIVE MULTI-DEVICE GAME ROOM</span>
+                </span>
+                <h2 class="title-font text-2xl sm:text-4xl font-black text-white">Host vs. Contestant Showdown</h2>
+                <p class="text-sm text-slate-400 max-w-2xl mx-auto">
+                    Players join on their own devices using a 4-digit room code or shared link. In the waiting room, players are paired up and randomly assigned as <strong class="text-amber-400">Game Show Host</strong> or <strong class="text-emerald-400">Contestant</strong>!
+                </p>
+            </div>
+
+            <!-- Invite Banner (shown when opened via ?room=XXXX) -->
+            <div id="mp-invite-banner" class="hidden max-w-xl mx-auto bg-purple-950/50 border border-purple-500/40 rounded-2xl p-4 text-center space-y-1">
+                <div class="text-sm font-bold text-purple-200">🔗 You've been invited to Room <span id="mp-invite-code-label" class="font-mono text-amber-400">----</span>!</div>
+                <p class="text-xs text-slate-300">Enter your name below and click <strong>Join Waiting Room</strong> to enter.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Create Room Card -->
+                <div id="mp-create-card" class="bg-gradient-to-b from-indigo-950/40 to-slate-900 border border-indigo-500/35 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-5">
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl border border-amber-500/30">
+                                👑
+                            </div>
+                            <div>
+                                <h3 class="title-font text-lg font-extrabold text-white">Create a Game Room</h3>
+                                <p class="text-xs text-slate-400">Set up a room code &amp; link for players to join</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 pt-1">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Your Name</label>
+                                <input type="text" id="mp-host-name" placeholder="e.g. Ms Smith" maxlength="16" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 font-medium text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Total Game Duration</label>
+                                <select id="mp-duration-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 font-semibold text-sm">
+                                    <option value="60">1 Minute (Quick Demo)</option>
+                                    <option value="120">2 Minutes</option>
+                                    <option value="180" selected>3 Minutes (Recommended)</option>
+                                    <option value="300">5 Minutes</option>
+                                    <option value="480">8 Minutes</option>
+                                    <option value="600">10 Minutes</option>
+                                    <option value="900">15 Minutes</option>
+                                </select>
+                            </div>
+
+                            <label class="flex items-center justify-between gap-3 bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-2.5 cursor-pointer select-none">
+                                <div>
+                                    <span class="block text-xs font-bold text-slate-200">Include me in player pairings</span>
+                                    <span class="block text-[11px] text-slate-400">Turn off if you are only projecting/organizing</span>
+                                </div>
+                                <input type="checkbox" id="mp-host-plays" checked class="w-4 h-4 accent-amber-500 rounded cursor-pointer">
+                            </label>
+                        </div>
+                    </div>
+
+                    <button onclick="mpCreateRoom()" class="w-full py-3.5 px-5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center space-x-2">
+                        <span>🚀 Create Room &amp; Get Link</span>
+                    </button>
+                </div>
+
+                <!-- Join Room Card -->
+                <div id="mp-join-card" class="bg-gradient-to-b from-purple-950/40 to-slate-900 border border-purple-500/35 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-5">
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-xl border border-purple-500/30">
+                                🎟️
+                            </div>
+                            <div>
+                                <h3 class="title-font text-lg font-extrabold text-white">Join Existing Room</h3>
+                                <p class="text-xs text-slate-400">Enter your name and the 4-digit room code</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 pt-1">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Your Name</label>
+                                <input type="text" id="mp-join-name" placeholder="e.g. Alex" maxlength="16" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 font-medium text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">4-Digit Room Code</label>
+                                <input type="text" id="mp-join-code" placeholder="e.g. 4829" maxlength="4" inputmode="numeric" pattern="[0-9]*" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-2xl tracking-[0.35em] text-center font-mono font-black text-purple-300 focus:outline-none focus:border-purple-500">
+                            </div>
+                        </div>
+
+                        <div id="mp-join-status" class="hidden rounded-xl p-3 text-xs font-semibold text-center border"></div>
+                    </div>
+
+                    <button onclick="mpJoinRoom()" class="w-full py-3.5 px-5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/25 transition flex items-center justify-center space-x-2">
+                        <span>🔌 Join Waiting Room</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. MULTIPLAYER LOBBY (BEFORE SESSION STARTS) -->
+        <section id="mp-lobby-screen" class="hidden max-w-4xl mx-auto space-y-6">
+            <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+                
+                <!-- Top Room Code & Share Link Bar -->
+                <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-950/90 rounded-2xl p-5 border border-indigo-500/30">
+                    <div>
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-400 block">Room Code</span>
+                        <div class="flex items-center space-x-3 mt-1">
+                            <span id="mp-lobby-code" class="title-font text-4xl sm:text-5xl font-black tracking-widest text-white">----</span>
+                            <button id="mp-copy-code-btn" onclick="mpCopyCode()" class="px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold border border-indigo-500/30 transition">
+                                📋 Copy Code
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Session Timer</span>
+                            <span id="mp-lobby-duration-badge" class="title-font text-lg font-extrabold text-amber-400">3:00</span>
+                        </div>
+                        <button onclick="mpLeaveRoom()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs font-bold transition">
+                            Leave Room
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shareable Link Row -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/70 rounded-xl p-4 border border-slate-800">
+                    <div class="min-w-0">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-amber-400 block">Shareable Invite Link</span>
+                        <span id="mp-lobby-link" class="text-xs font-mono text-slate-300 break-all block mt-1"></span>
+                    </div>
+                    <button id="mp-copy-link-btn" onclick="mpCopyLink()" class="shrink-0 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow transition">
+                        🔗 Copy Share Link
+                    </button>
+                </div>
+
+                <!-- Rules Reminder -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
+                        <div class="font-bold text-amber-400 mb-1">1. Random Pairing</div>
+                        <p class="text-slate-400">Players in the waiting room are paired up: one is assigned <strong>Game Show Host</strong> and the other <strong>Contestant</strong>.</p>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
+                        <div class="font-bold text-emerald-400 mb-1">2. Scoring Points</div>
+                        <p class="text-slate-400"><strong>Contestant</strong> scores <strong>+1 pt</strong> if they win the Car. <strong>Game Show Host</strong> scores <strong>+1 pt</strong> if they get a Goat!</p>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
+                        <div class="font-bold text-purple-400 mb-1">3. Remix &amp; Win</div>
+                        <p class="text-slate-400">After every match, both players return to the waiting room to pair with new opponents until time runs out!</p>
+                    </div>
+                </div>
+
+                <!-- Connected Players List -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-sm text-slate-200">
+                            👥 Players in Waiting Room (<span id="mp-lobby-player-count">0</span>)
+                        </h4>
+                        <span id="mp-lobby-conn-status" class="text-xs text-emerald-400 font-semibold">● Connected</span>
+                    </div>
+
+                    <div id="mp-lobby-players-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <!-- Player pills rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Host Start Button or Player Waiting Banner -->
+                <div id="mp-lobby-host-controls" class="hidden pt-4 border-t border-slate-800">
+                    <button id="mp-start-session-btn" onclick="mpStartSession()" class="w-full py-4 px-6 rounded-xl font-black text-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-xl shadow-emerald-500/25 transition flex items-center justify-center space-x-2">
+                        <span>▶️ START MULTIPLAYER SESSION</span>
+                    </button>
+                    <p id="mp-start-hint" class="text-xs text-center text-slate-400 mt-2">Need at least 2 players in the player pool to start pairing.</p>
+                </div>
+
+                <div id="mp-lobby-guest-notice" class="hidden bg-purple-950/40 border border-purple-500/30 rounded-xl p-4 text-center">
+                    <p class="text-sm font-bold text-purple-200 animate-pulse">⏳ Waiting for the Room Host to start the session...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. MULTIPLAYER ACTIVE SESSION: WAITING ROOM / RE-PAIRING SCREEN -->
+        <section id="mp-waiting-screen" class="hidden max-w-5xl mx-auto space-y-6">
+            <!-- Top Session Bar -->
+            <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Room</span>
+                        <span id="mp-wait-code" class="font-mono text-base font-black text-indigo-300">----</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Waiting Room</span>
+                        <h3 class="text-base sm:text-lg font-extrabold text-white">Pairing Players for Next Match...</h3>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-slate-950 border border-amber-500/40 rounded-xl px-4 py-2 text-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Time Left</span>
+                        <span id="mp-wait-timer" class="title-font text-xl sm:text-2xl font-black text-amber-400 font-mono">03:00</span>
+                    </div>
+                    <div class="bg-slate-950 border border-emerald-500/40 rounded-xl px-4 py-2 text-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Your Score</span>
+                        <span id="mp-wait-my-score" class="title-font text-xl sm:text-2xl font-black text-emerald-400">0</span>
+                    </div>
+                    <button id="mp-end-now-btn" onclick="mpForceEndSession()" class="hidden px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/35 text-rose-300 border border-rose-500/40 text-xs font-bold transition">
+                        End Now
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Pairing Status & Active Matches -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gradient-to-b from-slate-800/90 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 text-center space-y-3 shadow-xl">
+                        <div class="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center text-3xl mx-auto animate-bounce">
+                            🎲
+                        </div>
+                        <h4 id="mp-wait-status-title" class="title-font text-xl font-extrabold text-white">Looking for an available opponent...</h4>
+                        <p id="mp-wait-status-desc" class="text-xs sm:text-sm text-slate-300 max-w-md mx-auto">
+                            As soon as another player enters the waiting room, you will be paired up and randomly assigned as either the Game Show Host or Contestant!
+                        </p>
+                    </div>
+
+                    <!-- Live Matches Currently in Progress -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                        <h4 class="title-font text-sm font-bold text-amber-400 uppercase tracking-wider">
+                            🎬 Live Matches in Progress (<span id="mp-active-matches-count">0</span>)
+                        </h4>
+                        <div id="mp-active-matches-list" class="space-y-2 text-xs">
+                            <p class="text-slate-500 italic">No active matches right now.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Live Standings -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h4 class="title-font text-sm font-bold text-amber-400">🏆 LIVE LEADERBOARD</h4>
+                        <span class="text-[11px] text-slate-400">Points</span>
+                    </div>
+                    <div id="mp-wait-leaderboard" class="space-y-2 max-h-96 overflow-y-auto">
+                        <!-- Standings rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. MULTIPLAYER ACTIVE MATCH SCREEN (HOST VS CONTESTANT) -->
+        <section id="mp-match-screen" class="hidden space-y-6">
+            
+            <!-- Match Header & Session Timer -->
+            <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div id="mp-role-badge" class="px-3.5 py-2 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider border shadow">
+                        🎙️ ROLE
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">
+                            🎙️ Host: <strong id="mp-match-host-name" class="text-amber-300">---</strong>
+                            <span class="mx-1.5 text-slate-600">vs</span>
+                            🧍 Contestant: <strong id="mp-match-contestant-name" class="text-emerald-300">---</strong>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">
+                            Scoring: <span class="text-emerald-400 font-semibold">Contestant wins Car = +1 pt</span> • <span class="text-amber-400 font-semibold">Contestant gets Goat = +1 pt to Host</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-slate-950 border border-amber-500/40 rounded-xl px-4 py-1.5 text-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Time Left</span>
+                        <span id="mp-match-timer" class="title-font text-lg sm:text-xl font-black text-amber-400 font-mono">03:00</span>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-1.5 text-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Your Score</span>
+                        <span id="mp-match-my-score" class="title-font text-lg sm:text-xl font-black text-emerald-400">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Match Prompt Banner -->
+            <div class="relative rounded-2xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-slate-700/80 p-5 shadow-2xl overflow-hidden">
+                <div class="spotlight absolute inset-0 pointer-events-none"></div>
+                <div class="relative z-10 flex items-center space-x-4">
+                    <div id="mp-prompt-icon" class="w-14 h-14 rounded-full bg-slate-950 border border-amber-500/40 flex items-center justify-center text-2xl shrink-0">
+                        🎙️
+                    </div>
+                    <div>
+                        <span id="mp-match-step-badge" class="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold mb-1">
+                            STEP 1
+                        </span>
+                        <h2 id="mp-match-prompt" class="text-base sm:text-xl font-bold text-white leading-snug">
+                            Loading match...
+                        </h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multiplayer 3 Doors Stage -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <!-- MP Door 1 -->
+                <div id="mp-door-card-1" class="relative group cursor-pointer" onclick="mpHandleDoorClick(1)">
+                    <div id="mp-door-panel-1" class="door-frame-card relative rounded-2xl border-2 border-slate-700/90 p-4 shadow-2xl h-[330px] sm:h-[370px] flex flex-col items-center justify-between overflow-hidden hover:border-amber-500/80">
+                        <div class="w-full flex items-center justify-between z-10 gap-1">
+                            <span class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-amber-400 title-font text-xs font-extrabold tracking-wider">DOOR 1</span>
+                            <div class="flex items-center space-x-1">
+                                <span id="mp-door-car-tag-1" class="hidden px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-slate-950 tracking-wider">🚗 CAR</span>
+                                <span id="mp-door-pick-tag-1" class="hidden px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider">PICKED</span>
+                            </div>
+                        </div>
+                        <div class="flex-grow w-full flex items-center justify-center my-1 overflow-hidden">
+                            <img id="mp-door-img-1" alt="Door 1" class="max-h-[235px] sm:max-h-[270px] w-auto object-contain select-none pointer-events-none drop-shadow-2xl" />
+                        </div>
+                        <div id="mp-door-caption-1" class="text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10">Closed Door</div>
+                    </div>
+                </div>
+
+                <!-- MP Door 2 -->
+                <div id="mp-door-card-2" class="relative group cursor-pointer" onclick="mpHandleDoorClick(2)">
+                    <div id="mp-door-panel-2" class="door-frame-card relative rounded-2xl border-2 border-slate-700/90 p-4 shadow-2xl h-[330px] sm:h-[370px] flex flex-col items-center justify-between overflow-hidden hover:border-amber-500/80">
+                        <div class="w-full flex items-center justify-between z-10 gap-1">
+                            <span class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-amber-400 title-font text-xs font-extrabold tracking-wider">DOOR 2</span>
+                            <div class="flex items-center space-x-1">
+                                <span id="mp-door-car-tag-2" class="hidden px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-slate-950 tracking-wider">🚗 CAR</span>
+                                <span id="mp-door-pick-tag-2" class="hidden px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider">PICKED</span>
+                            </div>
+                        </div>
+                        <div class="flex-grow w-full flex items-center justify-center my-1 overflow-hidden">
+                            <img id="mp-door-img-2" alt="Door 2" class="max-h-[235px] sm:max-h-[270px] w-auto object-contain select-none pointer-events-none drop-shadow-2xl" />
+                        </div>
+                        <div id="mp-door-caption-2" class="text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10">Closed Door</div>
+                    </div>
+                </div>
+
+                <!-- MP Door 3 -->
+                <div id="mp-door-card-3" class="relative group cursor-pointer" onclick="mpHandleDoorClick(3)">
+                    <div id="mp-door-panel-3" class="door-frame-card relative rounded-2xl border-2 border-slate-700/90 p-4 shadow-2xl h-[330px] sm:h-[370px] flex flex-col items-center justify-between overflow-hidden hover:border-amber-500/80">
+                        <div class="w-full flex items-center justify-between z-10 gap-1">
+                            <span class="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-amber-400 title-font text-xs font-extrabold tracking-wider">DOOR 3</span>
+                            <div class="flex items-center space-x-1">
+                                <span id="mp-door-car-tag-3" class="hidden px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-slate-950 tracking-wider">🚗 CAR</span>
+                                <span id="mp-door-pick-tag-3" class="hidden px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider">PICKED</span>
+                            </div>
+                        </div>
+                        <div class="flex-grow w-full flex items-center justify-center my-1 overflow-hidden">
+                            <img id="mp-door-img-3" alt="Door 3" class="max-h-[235px] sm:max-h-[270px] w-auto object-contain select-none pointer-events-none drop-shadow-2xl" />
+                        </div>
+                        <div id="mp-door-caption-3" class="text-[11px] font-bold uppercase tracking-widest text-slate-400 z-10">Closed Door</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multiplayer Action Buttons (Stick / Switch or Return to Waiting Room) -->
+            <div class="max-w-2xl mx-auto text-center">
+                <div id="mp-contestant-decision-controls" class="hidden flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button onclick="mpContestantDecide('STICK')" class="w-full sm:w-1/2 py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-lg shadow-xl border border-blue-400/30 transition">
+                        🔒 STICK WITH DOOR <span id="mp-stick-door-num">1</span>
+                    </button>
+                    <button onclick="mpContestantDecide('SWITCH')" class="w-full sm:w-1/2 py-4 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-lg shadow-xl border border-emerald-400/30 btn-pulse transition">
+                        🔄 SWITCH TO DOOR <span id="mp-switch-door-num">2</span>
+                    </button>
+                </div>
+
+                <div id="mp-match-result-controls" class="hidden space-y-3">
+                    <button onclick="mpReturnToWaitingRoom()" class="py-3.5 px-8 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-base shadow-xl transition">
+                        🔄 Return to Waiting Room Now
+                    </button>
+                    <p class="text-xs text-slate-400">Automatically returning to the waiting room to pair with your next opponent...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. MULTIPLAYER SESSION ENDED: PODIUM & FINAL WINNERS -->
+        <section id="mp-podium-screen" class="hidden max-w-4xl mx-auto space-y-6 py-4">
+            <div class="bg-gradient-to-b from-slate-800/95 to-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+                <div class="space-y-2">
+                    <span class="inline-block px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-widest">
+                        ⏰ TIME'S UP — FINAL RESULTS
+                    </span>
+                    <h2 class="title-font text-3xl sm:text-4xl font-black text-white glow-text-gold">🏆 TOURNAMENT PODIUM 🏆</h2>
+                    <p id="mp-podium-subtitle" class="text-sm text-slate-300">Congratulations to our top Monty Hall champions!</p>
+                </div>
+
+                <!-- 1st, 2nd, 3rd Place Podium Cards -->
+                <div id="mp-podium-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end max-w-3xl mx-auto pt-2">
+                    <!-- Rendered dynamically -->
+                </div>
+
+                <!-- Full Leaderboard Table -->
+                <div class="bg-slate-950/90 border border-slate-800 rounded-2xl overflow-hidden text-left max-w-2xl mx-auto">
+                    <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                        <span class="title-font text-xs font-extrabold uppercase tracking-wider text-amber-400">Complete Standings</span>
+                        <span id="mp-final-total-matches" class="text-xs text-slate-400">0 Total Matches</span>
+                    </div>
+                    <div id="mp-final-standings-list" class="divide-y divide-slate-800/70 max-h-64 overflow-y-auto">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <button id="mp-play-again-btn" onclick="mpResetToLobby()" class="hidden py-3.5 px-7 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-sm shadow-xl transition">
+                        🔄 Back to Lobby (Play Again)
+                    </button>
+                    <button onclick="mpLeaveRoom()" class="py-3.5 px-7 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm border border-slate-700 transition">
+                        Exit Multiplayer Room
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
     <!-- Footer -->
     <footer class="border-t border-slate-800 bg-slate-950 py-4 text-center text-xs text-slate-500">
         <div class="max-w-7xl mx-auto px-4">
@@ -585,25 +1016,6 @@
         <div id="print-page-back" class="a4-print-page"></div>
     </div>
 
-    <!-- Modal: Pass Device to Contestant (Two-Player Mode) -->
-    <div id="p2-pass-modal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
-            <div class="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mx-auto border border-amber-500/30">
-                🔒
-            </div>
-            <h3 class="title-font text-xl font-extrabold text-amber-400">CAR HIDDEN SUCCESSFULLY!</h3>
-            <p class="text-sm text-slate-300">
-                The Sports Car has been hidden behind <strong id="p2-secret-door-num" class="text-amber-400">Door X</strong>.
-            </p>
-            <p class="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                🙈 Hand or pass the screen over to the <strong>Contestant</strong> now!
-            </p>
-            <button onclick="closeP2PassModal()" class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm shadow-xl transition">
-                🧍 I'm Ready! (Contestant Turn)
-            </button>
-        </div>
-    </div>
-
     <!-- Modal: Educational Mathematical Explanation -->
     <div id="math-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
@@ -656,63 +1068,50 @@
 
     <script>
         /* ====================================================================
-           DOOR SPRITE ARTWORK (SHARED BY ON-SCREEN STAGE & PRINTABLE A4 CARDS)
+           UTILITIES & DOOR SPRITE ARTWORK (SHARED BY STAGE & A4 PRINT CARDS)
            ==================================================================== */
+        function esc(str) {
+            return String(str).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
 
-        // Built-in vector data URIs matching the 3 illustrated doors (with dark stage backdrop #162033)
         function svgToDataUri(svg) {
             return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.trim());
         }
 
         const FALLBACK_CLOSED_URI = svgToDataUri(`
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 315">
-                <!-- Outer wooden doorframe -->
                 <rect x="14" y="12" width="174" height="286" rx="3" fill="#C4833F" stroke="#3B2314" stroke-width="5"/>
-                <!-- Door leaf -->
                 <rect x="29" y="27" width="144" height="266" fill="#BA7B3A" stroke="#3B2314" stroke-width="4.5"/>
-                <!-- Top recessed panel -->
                 <rect x="48" y="46" width="106" height="96" rx="2" fill="#A96C2F" stroke="#5A3419" stroke-width="3.5"/>
-                <!-- Bottom recessed panel -->
                 <rect x="48" y="176" width="106" height="96" rx="2" fill="#A96C2F" stroke="#5A3419" stroke-width="3.5"/>
-                <!-- Brass doorknob on left -->
                 <circle cx="43" cy="160" r="9.5" fill="#EAB308" stroke="#3B2314" stroke-width="3.5"/>
-                <!-- Floor line -->
                 <line x1="10" y1="298" x2="192" y2="298" stroke="#3B2314" stroke-width="5" stroke-linecap="round"/>
             </svg>
         `);
 
         const FALLBACK_GOAT_URI = svgToDataUri(`
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 315">
-                <!-- Outer wooden doorframe -->
                 <rect x="12" y="12" width="152" height="276" rx="3" fill="#C4833F" stroke="#3B2314" stroke-width="5"/>
-                <!-- Dark stage-matched doorway interior -->
                 <rect x="25" y="25" width="126" height="258" fill="#162033" stroke="#3B2314" stroke-width="4"/>
-                <!-- Subtle floor shadow under goat -->
                 <ellipse cx="86" cy="264" rx="54" ry="12" fill="#0B111E"/>
-                <!-- Goat horns -->
                 <path d="M84 114 C78 96, 68 88, 63 87 C65 96, 72 106, 78 117 Z" fill="#9A6332" stroke="#3B2314" stroke-width="3.5" stroke-linejoin="round"/>
                 <path d="M98 113 C103 95, 112 87, 118 86 C116 95, 110 105, 104 116 Z" fill="#9A6332" stroke="#3B2314" stroke-width="3.5" stroke-linejoin="round"/>
-                <!-- Goat body & legs -->
                 <path d="M27 166 C48 164, 66 168, 76 175 L108 175 L108 228 L104 260 L94 260 L93 224 L82 224 L80 262 L70 262 L69 224 L52 224 L50 260 L40 260 L38 224 L27 224 Z" fill="#F8F5EC" stroke="#3B2314" stroke-width="4" stroke-linejoin="round"/>
-                <!-- Hooves -->
                 <rect x="40" y="253" width="10" height="7" fill="#7C4D25" stroke="#3B2314" stroke-width="2.5"/>
                 <rect x="70" y="255" width="10" height="7" fill="#7C4D25" stroke="#3B2314" stroke-width="2.5"/>
                 <rect x="94" y="253" width="10" height="7" fill="#7C4D25" stroke="#3B2314" stroke-width="2.5"/>
-                <!-- Goat ears -->
                 <ellipse cx="64" cy="133" rx="14" ry="6.5" transform="rotate(-24 64 133)" fill="#F8F5EC" stroke="#3B2314" stroke-width="3.8"/>
                 <ellipse cx="122" cy="132" rx="14" ry="6.5" transform="rotate(24 122 132)" fill="#F8F5EC" stroke="#3B2314" stroke-width="3.8"/>
-                <!-- Goat head & beard -->
                 <path d="M74 124 C74 113, 108 113, 111 126 C114 140, 118 152, 114 162 C110 170, 99 172, 95 169 L96 181 L88 176 L83 180 L84 168 C75 164, 71 146, 74 124 Z" fill="#F8F5EC" stroke="#3B2314" stroke-width="4" stroke-linejoin="round"/>
-                <!-- Eyes & snout -->
                 <circle cx="88" cy="136" r="3" fill="#3B2314"/>
                 <circle cx="103" cy="136" r="3" fill="#3B2314"/>
                 <path d="M99 152 Q105 155 110 151" fill="none" stroke="#3B2314" stroke-width="3" stroke-linecap="round"/>
                 <path d="M97 161 Q104 164 109 160" fill="none" stroke="#3B2314" stroke-width="2.8" stroke-linecap="round"/>
-                <!-- Swung-open wooden door on the right -->
                 <polygon points="145,35 198,23 198,303 145,284" fill="#BA7B3A" stroke="#3B2314" stroke-width="4.5" stroke-linejoin="round"/>
                 <polygon points="154,53 182,46 182,139 154,142" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
                 <polygon points="154,174 182,175 182,268 154,261" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
-                <!-- Door edge thickness & knobs -->
                 <rect x="198" y="23" width="6" height="280" fill="#9A6028" stroke="#3B2314" stroke-width="3"/>
                 <ellipse cx="207" cy="164" rx="4.5" ry="7" fill="#EAB308" stroke="#3B2314" stroke-width="3"/>
                 <ellipse cx="187" cy="164" rx="6.5" ry="8.5" fill="#EAB308" stroke="#3B2314" stroke-width="3.2"/>
@@ -722,32 +1121,21 @@
 
         const FALLBACK_CAR_URI = svgToDataUri(`
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 315">
-                <!-- Outer wooden doorframe -->
                 <rect x="12" y="12" width="152" height="276" rx="3" fill="#C4833F" stroke="#3B2314" stroke-width="5"/>
-                <!-- Dark stage-matched doorway interior -->
                 <rect x="25" y="25" width="126" height="258" fill="#162033" stroke="#3B2314" stroke-width="4"/>
-                <!-- Floor shadow under car -->
                 <ellipse cx="86" cy="252" rx="56" ry="14" fill="#0B111E"/>
-                <!-- Car wheels -->
                 <ellipse cx="38" cy="233" rx="12" ry="15" fill="#57463A" stroke="#3B2314" stroke-width="3.8"/>
                 <ellipse cx="131" cy="224" rx="10" ry="13" fill="#57463A" stroke="#3B2314" stroke-width="3.8"/>
-                <!-- Side mirror -->
                 <ellipse cx="33" cy="159" rx="6" ry="8" fill="#DC2626" stroke="#3B2314" stroke-width="3.5"/>
-                <!-- Red car cabin & hood -->
                 <path d="M36 164 L47 132 C52 121, 66 118, 92 119 C114 120, 124 127, 130 144 L138 176 L138 220 C122 232, 60 236, 27 224 L27 182 C27 172, 31 167, 36 164 Z" fill="#DC2626" stroke="#3B2314" stroke-width="4.2" stroke-linejoin="round"/>
-                <!-- Windshield -->
                 <path d="M46 162 L55 137 C59 130, 72 128, 92 129 C105 130, 110 135, 111 146 L111 164 Z" fill="#A5C4D4" stroke="#3B2314" stroke-width="3.5" stroke-linejoin="round"/>
-                <!-- Side window -->
                 <path d="M118 136 C123 139, 127 148, 129 162 L118 164 Z" fill="#8FB2C4" stroke="#3B2314" stroke-width="3.2" stroke-linejoin="round"/>
-                <!-- Headlights & grille -->
                 <ellipse cx="34" cy="193" rx="6" ry="9" fill="#FEF9C3" stroke="#3B2314" stroke-width="3.2"/>
                 <ellipse cx="90" cy="197" rx="9" ry="11" fill="#FEF9C3" stroke="#3B2314" stroke-width="3.2"/>
                 <path d="M46 184 Q63 188 77 184" fill="none" stroke="#3B2314" stroke-width="3.2" stroke-linecap="round"/>
                 <rect x="42" y="205" width="38" height="7" rx="3.5" fill="#57463A" stroke="#3B2314" stroke-width="3"/>
-                <!-- Front right wheel -->
                 <ellipse cx="109" cy="233" rx="14" ry="18" fill="#57463A" stroke="#3B2314" stroke-width="4"/>
                 <ellipse cx="111" cy="233" rx="6" ry="8" fill="#9CA3AF" stroke="#3B2314" stroke-width="2.5"/>
-                <!-- Swung-open wooden door on the right -->
                 <polygon points="145,35 198,23 198,303 145,284" fill="#BA7B3A" stroke="#3B2314" stroke-width="4.5" stroke-linejoin="round"/>
                 <polygon points="154,53 182,46 182,139 154,142" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
                 <polygon points="154,174 182,175 182,268 154,261" fill="#A96C2F" stroke="#5A3419" stroke-width="3"/>
@@ -758,14 +1146,12 @@
             </svg>
         `);
 
-        // Active sprite set used identically by both the stage and printable A4 cards
         const doorSprites = {
             closed: FALLBACK_CLOSED_URI,
             goat: FALLBACK_GOAT_URI,
             car: FALLBACK_CAR_URI
         };
 
-        // Process the 3-door sprite sheet (Untitled drawing.png) to replace green interior with dark stage slate
         function processDoorSpriteSheet(imgElement) {
             try {
                 const crops = [
@@ -774,8 +1160,7 @@
                     { key: 'closed', sx: 476, sy: 14, sw: 192, sh: 306, recolorGreen: false }
                 ];
 
-                // Target dark stage background RGB (#162033) matching the game design
-                const targetR = 22, targetG = 32, targetB = 51;
+                const targetR = 22, targetG = 32, targetB = 51; // #162033 stage backdrop
 
                 crops.forEach(crop => {
                     const c = document.createElement('canvas');
@@ -794,19 +1179,16 @@
                         const a = data[i + 3];
 
                         if (a < 15) {
-                            // Keep surrounding exterior region completely transparent
                             data[i + 3] = 0;
                             continue;
                         }
 
-                        // If image had white surrounding background instead of alpha, make outer pure white transparent
                         if (r > 248 && g > 248 && b > 248) {
                             data[i + 3] = 0;
                             continue;
                         }
 
                         if (crop.recolorGreen) {
-                            // Sage green doorway interior has G > R and G > B; floor shadow keeps proportional luminance
                             const greenExcess = g - Math.max(r, b);
                             if (greenExcess > 1) {
                                 const blend = Math.min(1, Math.max(0, (greenExcess - 1) / 7));
@@ -828,8 +1210,7 @@
 
                 refreshAllDoorVisuals();
             } catch (err) {
-                // If opened via file:// with strict CORS canvas tainting, built-in matching SVGs remain active
-                console.info('Using built-in door artwork (load PNG via Print Cards modal if needed):', err.message);
+                console.info('Using built-in door artwork:', err.message);
             }
         }
 
@@ -855,13 +1236,13 @@
             reader.readAsDataURL(file);
         }
 
-        function setDoorVisual(doorNum, state) {
-            const imgEl = document.getElementById(`door-img-${doorNum}`);
-            const capEl = document.getElementById(`door-caption-${doorNum}`);
+        function setDoorVisual(doorNum, state, prefix = '') {
+            const imgEl = document.getElementById(`${prefix}door-img-${doorNum}`);
+            const capEl = document.getElementById(`${prefix}door-caption-${doorNum}`);
             if (!imgEl || !capEl) return;
 
             imgEl.classList.remove('door-revealed-anim');
-            void imgEl.offsetWidth; // restart animation on reveal
+            void imgEl.offsetWidth;
 
             if (state === 'GOAT') {
                 imgEl.src = doorSprites.goat;
@@ -881,18 +1262,21 @@
         }
 
         function refreshAllDoorVisuals() {
-            for (let i = 1; i <= 3; i++) {
-                const capEl = document.getElementById(`door-caption-${i}`);
-                if (!capEl) continue;
-                const txt = capEl.textContent;
-                if (txt.includes('GOAT')) {
-                    document.getElementById(`door-img-${i}`).src = doorSprites.goat;
-                } else if (txt.includes('CAR')) {
-                    document.getElementById(`door-img-${i}`).src = doorSprites.car;
-                } else {
-                    document.getElementById(`door-img-${i}`).src = doorSprites.closed;
+            ['', 'mp-'].forEach(prefix => {
+                for (let i = 1; i <= 3; i++) {
+                    const capEl = document.getElementById(`${prefix}door-caption-${i}`);
+                    const imgEl = document.getElementById(`${prefix}door-img-${i}`);
+                    if (!capEl || !imgEl) continue;
+                    const txt = capEl.textContent;
+                    if (txt.includes('GOAT')) {
+                        imgEl.src = doorSprites.goat;
+                    } else if (txt.includes('CAR')) {
+                        imgEl.src = doorSprites.car;
+                    } else {
+                        imgEl.src = doorSprites.closed;
+                    }
                 }
-            }
+            });
             renderPrintableCards();
         }
 
@@ -900,17 +1284,13 @@
            DOUBLE-SIDED A4 PRINTABLE CARDS BUILDER (3 SETS OF 3 CARDS)
            ==================================================================== */
         function renderPrintableCards() {
-            // 3 sets of 3 cards (each row = 2 open goat doors + 1 open car door; 6 goats & 3 cars total)
             const frontLayout = [
-                // Set 1
                 { type: 'goat', label: 'GOAT' },
                 { type: 'goat', label: 'GOAT' },
                 { type: 'car',  label: 'SPORTS CAR' },
-                // Set 2
                 { type: 'goat', label: 'GOAT' },
                 { type: 'car',  label: 'SPORTS CAR' },
                 { type: 'goat', label: 'GOAT' },
-                // Set 3
                 { type: 'car',  label: 'SPORTS CAR' },
                 { type: 'goat', label: 'GOAT' },
                 { type: 'goat', label: 'GOAT' }
@@ -1074,47 +1454,65 @@
         document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
 
         /* ====================================================================
-           GAME STATE ENGINE
+           1-PLAYER GAME STATE ENGINE
            ==================================================================== */
         let gameState = {
-            gameMode: '1P', // '1P' or '2P'
+            gameMode: '1P', // '1P' or 'MP'
             roundNumber: 1,
-            stage: 1, // 1P stages: 1: Pick Door, 2: Switch Choice, 3: Outcome
-            p2Stage: 'HOST_CAR_SELECT', // 2P stages: 'HOST_CAR_SELECT', 'CONTESTANT_PICK', 'HOST_OPEN_DOOR', 'CONTESTANT_DECISION', 'RESULT'
+            stage: 1,
             carDoor: null,
             initialPick: null,
             hostDoor: null,
             switchDoor: null,
             finalPick: null,
-            finalAction: null, // 'STICK' or 'SWITCH'
+            finalAction: null,
             history: []
         };
 
-        // Initialize Game on Load
         window.onload = function() {
             startNewRound();
             renderPrintableCards();
             tryLoadDefaultSpriteFile();
             initChart();
             renderStats();
+            checkInviteQueryParam();
         };
 
+        function checkInviteQueryParam() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const roomParam = (params.get('room') || '').trim();
+                if (/^\d{4}$/.test(roomParam)) {
+                    setGameMode('MP');
+                    document.getElementById('mp-join-code').value = roomParam;
+                    document.getElementById('mp-invite-code-label').textContent = roomParam;
+                    document.getElementById('mp-invite-banner').classList.remove('hidden');
+                    setTimeout(() => document.getElementById('mp-join-name').focus(), 100);
+                }
+            } catch (e) {}
+        }
+
         function setGameMode(mode) {
-            if (gameState.gameMode === mode) return;
             gameState.gameMode = mode;
 
             const btn1p = document.getElementById('mode-1p-btn');
-            const btn2p = document.getElementById('mode-2p-btn');
+            const btnMp = document.getElementById('mode-mp-btn');
+            const view1p = document.getElementById('single-player-view');
+            const viewMp = document.getElementById('multiplayer-view');
 
             if (mode === '1P') {
                 btn1p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow';
-                btn2p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white';
+                btnMp.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white flex items-center space-x-1.5';
+                view1p.classList.remove('hidden');
+                viewMp.classList.add('hidden');
+                resizeCanvas();
             } else {
-                btn2p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow';
+                btnMp.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow flex items-center space-x-1.5';
                 btn1p.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white';
+                view1p.classList.add('hidden');
+                viewMp.classList.remove('hidden');
+                renderMultiplayerView();
             }
-
-            startNewRound();
         }
 
         function startNewRound() {
@@ -1127,7 +1525,6 @@
 
             document.getElementById('round-number-display').textContent = `#${gameState.roundNumber}`;
 
-            // Reset all 3 doors to the Closed Door graphic
             for (let i = 1; i <= 3; i++) {
                 const panel = document.getElementById(`door-panel-${i}`);
                 const card = document.getElementById(`door-card-${i}`);
@@ -1139,61 +1536,30 @@
                 setDoorVisual(i, 'CLOSED');
             }
 
-            // Game Mode Initialization
-            if (gameState.gameMode === '1P') {
-                gameState.carDoor = Math.floor(Math.random() * 3) + 1;
-                document.getElementById('stage-badge').textContent = 'STAGE 1: PICK A DOOR';
-                document.getElementById('host-speech').innerHTML = `
-                    Welcome contestant! Behind one door is a brand new <span class="text-amber-400">Sports Car 🚗</span>! Behind the other two are <span class="text-slate-400">Goats 🐐</span>. Pick your door!
-                `;
-                document.getElementById('stage-1-controls').innerHTML = '👇 Click on any closed door above to make your initial selection.';
-            } else {
-                // 2-Player Mode Initialization
-                gameState.carDoor = null;
-                gameState.p2Stage = 'HOST_CAR_SELECT';
-                document.getElementById('stage-badge').textContent = 'HOST TURN: HIDE THE CAR';
-                document.getElementById('host-speech').innerHTML = `
-                    🎙️ <strong>Host's Turn:</strong> Secretly click which door hides the <span class="text-amber-400">Sports Car 🚗</span>! (Contestant, look away!)
-                `;
-                document.getElementById('stage-1-controls').innerHTML = '👇 Host: Select a door to hide the car behind.';
-            }
+            gameState.carDoor = Math.floor(Math.random() * 3) + 1;
+            document.getElementById('stage-badge').textContent = 'STAGE 1: PICK A DOOR';
+            document.getElementById('host-speech').innerHTML = `
+                Welcome contestant! Behind one door is a brand new <span class="text-amber-400">Sports Car 🚗</span>! Behind the other two are <span class="text-slate-400">Goats 🐐</span>. Pick your door!
+            `;
+            document.getElementById('stage-1-controls').innerHTML = '👇 Click on any closed door above to make your initial selection.';
 
-            // Controls Visibility
             document.getElementById('stage-1-controls').classList.remove('hidden');
             document.getElementById('stage-2-controls').classList.add('hidden');
             document.getElementById('stage-3-controls').classList.add('hidden');
         }
 
         function handleDoorClick(doorNumber) {
-            if (gameState.gameMode === '1P') {
-                if (gameState.stage === 1) {
-                    selectInitialDoor(doorNumber);
-                } else if (gameState.stage === 2) {
-                    if (doorNumber === gameState.initialPick) {
-                        executeDecision('STICK');
-                    } else if (doorNumber === gameState.switchDoor) {
-                        executeDecision('SWITCH');
-                    }
-                }
-            } else {
-                // Two-Player Mode Handler
-                if (gameState.p2Stage === 'HOST_CAR_SELECT') {
-                    selectHostCar(doorNumber);
-                } else if (gameState.p2Stage === 'CONTESTANT_PICK') {
-                    selectContestantInitial(doorNumber);
-                } else if (gameState.p2Stage === 'HOST_OPEN_DOOR') {
-                    selectHostOpenDoor(doorNumber);
-                } else if (gameState.p2Stage === 'CONTESTANT_DECISION') {
-                    if (doorNumber === gameState.initialPick) {
-                        executeDecision('STICK');
-                    } else if (doorNumber === gameState.switchDoor) {
-                        executeDecision('SWITCH');
-                    }
+            if (gameState.stage === 1) {
+                selectInitialDoor(doorNumber);
+            } else if (gameState.stage === 2) {
+                if (doorNumber === gameState.initialPick) {
+                    executeDecision('STICK');
+                } else if (doorNumber === gameState.switchDoor) {
+                    executeDecision('SWITCH');
                 }
             }
         }
 
-        /* 1-Player Engine Functions */
         function selectInitialDoor(doorNumber) {
             playSound('click');
             gameState.initialPick = doorNumber;
@@ -1225,83 +1591,14 @@
             document.getElementById('stage-2-controls').classList.remove('hidden');
         }
 
-        /* 2-Player Engine Functions */
-        function selectHostCar(doorNumber) {
-            playSound('click');
-            gameState.carDoor = doorNumber;
-            
-            document.getElementById('p2-secret-door-num').textContent = `Door ${doorNumber}`;
-            document.getElementById('p2-pass-modal').classList.remove('hidden');
-        }
-
-        function closeP2PassModal() {
-            document.getElementById('p2-pass-modal').classList.add('hidden');
-            gameState.p2Stage = 'CONTESTANT_PICK';
-
-            document.getElementById('stage-badge').textContent = 'CONTESTANT: PICK A DOOR';
-            document.getElementById('host-speech').innerHTML = `
-                🧍 <strong>Contestant's Turn:</strong> Behind one door is a brand new <span class="text-amber-400">Sports Car 🚗</span>! Behind the other two are <span class="text-slate-400">Goats 🐐</span>. Pick your initial door!
-            `;
-            document.getElementById('stage-1-controls').innerHTML = '👇 Contestant: Click any door to make your initial pick.';
-        }
-
-        function selectContestantInitial(doorNumber) {
-            playSound('click');
-            gameState.initialPick = doorNumber;
-            gameState.p2Stage = 'HOST_OPEN_DOOR';
-
-            document.getElementById(`door-panel-${doorNumber}`).classList.add('is-selected');
-            document.getElementById(`door-tag-${doorNumber}`).classList.remove('hidden');
-
-            document.getElementById('stage-badge').textContent = 'HOST TURN: REVEAL A GOAT';
-            document.getElementById('host-speech').innerHTML = `
-                🎙️ <strong>Host's Turn:</strong> Select an unopened door containing a <span class="text-slate-400">Goat 🐐</span> to reveal to the Contestant! (You cannot select Door ${doorNumber}).
-            `;
-            document.getElementById('stage-1-controls').innerHTML = '👇 Host: Click a valid Goat door to open it.';
-        }
-
-        function selectHostOpenDoor(doorNumber) {
-            if (doorNumber === gameState.initialPick) {
-                alert(`⚠️ Host Rules: You cannot open Door ${doorNumber} because the contestant picked it!`);
-                return;
-            }
-            if (doorNumber === gameState.carDoor) {
-                alert(`⚠️ Host Rules: You cannot open Door ${doorNumber} because it hides the Sports Car!`);
-                return;
-            }
-
-            playSound('open');
-            gameState.hostDoor = doorNumber;
-            gameState.switchDoor = [1, 2, 3].find(d => d !== gameState.initialPick && d !== gameState.hostDoor);
-            gameState.p2Stage = 'CONTESTANT_DECISION';
-
-            setDoorVisual(gameState.hostDoor, 'GOAT');
-            document.getElementById(`door-card-${gameState.hostDoor}`).classList.add('pointer-events-none', 'opacity-85');
-
-            document.getElementById('stage-badge').textContent = 'CONTESTANT: STICK OR SWITCH';
-            document.getElementById('host-speech').innerHTML = `
-                🧍 <strong>Contestant's Turn:</strong> Door ${gameState.hostDoor} was opened showing a <span class="text-slate-400">Goat 🐐</span>! 
-                Do you want to <span class="text-blue-400">STICK</span> with Door ${gameState.initialPick}, or <span class="text-emerald-400">SWITCH</span> to Door ${gameState.switchDoor}?
-            `;
-
-            document.getElementById('stick-door-num').textContent = gameState.initialPick;
-            document.getElementById('switch-door-num').textContent = gameState.switchDoor;
-
-            document.getElementById('stage-1-controls').classList.add('hidden');
-            document.getElementById('stage-2-controls').classList.remove('hidden');
-        }
-
-        /* Final Resolution Function */
         function executeDecision(action) {
             playSound('click');
             gameState.stage = 3;
-            gameState.p2Stage = 'RESULT';
             gameState.finalAction = action;
             gameState.finalPick = (action === 'STICK') ? gameState.initialPick : gameState.switchDoor;
 
             const isWin = (gameState.finalPick === gameState.carDoor);
 
-            // Update door tags and selection borders to reflect the contestant's final pick
             for (let i = 1; i <= 3; i++) {
                 document.getElementById(`door-tag-${i}`).classList.add('hidden');
                 document.getElementById(`door-panel-${i}`).classList.remove('is-selected');
@@ -1309,7 +1606,6 @@
             document.getElementById(`door-tag-${gameState.finalPick}`).classList.remove('hidden');
             document.getElementById(`door-panel-${gameState.finalPick}`).classList.add('is-selected');
 
-            // Reveal the contestant's final chosen door with the matching open door graphic
             setDoorVisual(gameState.finalPick, isWin ? 'CAR' : 'GOAT');
 
             if (isWin) {
@@ -1329,7 +1625,7 @@
 
             const roundLog = {
                 round: gameState.roundNumber,
-                mode: gameState.gameMode,
+                mode: '1P',
                 initialPick: `Door ${gameState.initialPick}`,
                 hostOpened: `Door ${gameState.hostDoor}`,
                 action: gameState.finalAction,
@@ -1348,6 +1644,1184 @@
             renderHistoryTable();
             renderStats();
             updateChart();
+        }
+
+        /* ====================================================================
+           MULTI-DEVICE MULTIPLAYER GAME ROOM ENGINE (MQTT OVER WEBSOCKETS)
+           ==================================================================== */
+        const mp = {
+            client: null,
+            connected: false,
+            roomCode: null,
+            myId: null,
+            myName: '',
+            isRoomOrganizer: false,
+            organizerPlays: true,
+            hasBeenRegisteredInRoom: false,
+            lastJoinReqSentAt: 0,
+            lastReceivedSeq: 0,
+            joinTimeout: null,
+            heartbeatInterval: null,
+            sessionTickInterval: null,
+            lastRenderedMatchStepKey: '',
+
+            // Authoritative room state (maintained by Room Organizer & synced to all devices)
+            state: {
+                seq: 0,
+                status: 'NONE', // 'NONE', 'LOBBY', 'PLAYING', 'ENDED'
+                totalDurationSec: 180,
+                remainingSec: 180,
+                totalMatchesPlayed: 0,
+                players: {}, // id -> { id, name, score, wins, matchesPlayed, status: 'WAITING' | 'IN_MATCH', matchId, lastSeen, lastPartnerId }
+                matches: {}  // matchId -> { id, hostId, hostName, contestantId, contestantName, step: 'HIDE_CAR'|'CONTESTANT_PICK'|'HOST_OPEN_GOAT'|'CONTESTANT_DECIDE'|'RESULT', carDoor, initialPick, hostDoor, finalAction, finalPick, isWin, pointWinnerId, resolvedAt }
+            }
+        };
+
+        function formatSecondsMMSS(totalSec) {
+            const s = Math.max(0, Math.floor(totalSec));
+            const mins = Math.floor(s / 60);
+            const secs = s % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function mpGenerateRoomCode() {
+            return Math.floor(1000 + Math.random() * 9000).toString();
+        }
+
+        function mpGetShareLink() {
+            return `${window.location.href.split(/[?#]/)[0]}?room=${mp.roomCode}`;
+        }
+
+        function mpCleanupConnection() {
+            clearTimeout(mp.joinTimeout);
+            clearInterval(mp.heartbeatInterval);
+            clearInterval(mp.sessionTickInterval);
+            mp.heartbeatInterval = null;
+            mp.sessionTickInterval = null;
+            mp.lastRenderedMatchStepKey = '';
+            mp.hasBeenRegisteredInRoom = false;
+            mp.lastJoinReqSentAt = 0;
+            mp.lastReceivedSeq = 0;
+
+            if (mp.client) {
+                try { mp.client.end(true); } catch (e) {}
+            }
+            mp.client = null;
+            mp.connected = false;
+            document.getElementById('mp-live-pill').classList.add('hidden');
+        }
+
+        function mpLeaveRoom() {
+            if (mp.connected && mp.roomCode && mp.myId) {
+                mpPublish({ type: 'PLAYER_LEAVE', senderId: mp.myId });
+            }
+            mpCleanupConnection();
+            mp.roomCode = null;
+            mp.isRoomOrganizer = false;
+            mp.state.status = 'NONE';
+            mp.state.players = {};
+            mp.state.matches = {};
+            document.getElementById('mp-join-status').classList.add('hidden');
+            renderMultiplayerView();
+        }
+
+        function mpCreateRoom() {
+            const nameInput = document.getElementById('mp-host-name').value.trim() || 'Room Host';
+            const durationSec = parseInt(document.getElementById('mp-duration-select').value, 10) || 180;
+            const hostPlays = document.getElementById('mp-host-plays').checked;
+
+            mpCleanupConnection();
+            mp.isRoomOrganizer = true;
+            mp.organizerPlays = hostPlays;
+            mp.hasBeenRegisteredInRoom = true;
+            mp.roomCode = mpGenerateRoomCode();
+            mp.myId = 'org_' + Math.random().toString(36).substring(2, 9);
+            mp.myName = nameInput;
+
+            mp.state = {
+                seq: 1,
+                status: 'LOBBY',
+                totalDurationSec: durationSec,
+                remainingSec: durationSec,
+                totalMatchesPlayed: 0,
+                players: {},
+                matches: {}
+            };
+
+            if (hostPlays) {
+                mp.state.players[mp.myId] = {
+                    id: mp.myId,
+                    name: mp.myName,
+                    score: 0,
+                    wins: 0,
+                    matchesPlayed: 0,
+                    status: 'WAITING',
+                    matchId: null,
+                    lastSeen: Date.now(),
+                    lastPartnerId: null
+                };
+            }
+
+            renderMultiplayerView();
+            mpConnectMqtt(() => {
+                mpBroadcastRoomState();
+                mpStartOrganizerLoops();
+            });
+        }
+
+        function mpSendJoinRequest() {
+            mp.lastJoinReqSentAt = Date.now();
+            mpPublish({
+                type: 'JOIN_REQ',
+                senderId: mp.myId,
+                playerName: mp.myName
+            });
+        }
+
+        function mpJoinRoom() {
+            const nameInput = document.getElementById('mp-join-name').value.trim();
+            const codeInput = document.getElementById('mp-join-code').value.trim();
+            const statusBox = document.getElementById('mp-join-status');
+
+            if (!nameInput) {
+                alert('Please enter your name before joining.');
+                document.getElementById('mp-join-name').focus();
+                return;
+            }
+            if (!/^\d{4}$/.test(codeInput)) {
+                alert('Please enter a valid 4-digit room code.');
+                document.getElementById('mp-join-code').focus();
+                return;
+            }
+
+            mpCleanupConnection();
+            mp.isRoomOrganizer = false;
+            mp.hasBeenRegisteredInRoom = false;
+            mp.lastReceivedSeq = 0;
+            mp.roomCode = codeInput;
+            mp.myId = 'plr_' + Math.random().toString(36).substring(2, 9);
+            mp.myName = nameInput;
+            mp.state.status = 'CONNECTING';
+
+            statusBox.className = 'rounded-xl p-3 text-xs font-semibold text-center border bg-amber-950/50 border-amber-500/40 text-amber-300';
+            statusBox.textContent = `⏳ Connecting to Room ${codeInput}...`;
+            statusBox.classList.remove('hidden');
+
+            mp.joinTimeout = setTimeout(() => {
+                if (!mp.hasBeenRegisteredInRoom) {
+                    statusBox.className = 'rounded-xl p-3 text-xs font-semibold text-center border bg-rose-950/60 border-rose-500/40 text-rose-300';
+                    statusBox.textContent = `❌ Could not find Room ${codeInput}. Check the code with your host and try again.`;
+                }
+            }, 14000);
+
+            mpConnectMqtt(() => {
+                mpSendJoinRequest();
+
+                mp.heartbeatInterval = setInterval(() => {
+                    if (!mp.connected) return;
+                    if (!mp.hasBeenRegisteredInRoom) {
+                        mpSendJoinRequest();
+                    } else {
+                        mpPublish({
+                            type: 'HEARTBEAT',
+                            senderId: mp.myId,
+                            playerName: mp.myName
+                        });
+                    }
+                }, 3000);
+            });
+        }
+
+        function mpConnectMqtt(onReady) {
+            const topic = `monty-hall-room-v1/${mp.roomCode}`;
+            mp.client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+                clientId: 'mh_' + mp.myId + '_' + Math.random().toString(36).substring(2, 6),
+                clean: true,
+                connectTimeout: 7000,
+                keepalive: 25
+            });
+
+            mp.client.on('connect', () => {
+                mp.client.subscribe(topic, { qos: 0 }, (err) => {
+                    if (!err) {
+                        mp.connected = true;
+                        document.getElementById('mp-live-pill').classList.remove('hidden');
+                        if (onReady) onReady();
+                    }
+                });
+            });
+
+            mp.client.on('message', (_topic, payload) => {
+                try {
+                    const msg = JSON.parse(payload.toString());
+                    if (!msg || msg.roomCode !== mp.roomCode) return;
+                    if (msg.senderId === mp.myId) return;
+                    mpHandleMessage(msg);
+                } catch (e) {
+                    console.error('MQTT message parse error:', e);
+                }
+            });
+
+            mp.client.on('error', () => {
+                const statusBox = document.getElementById('mp-join-status');
+                if (statusBox && !mp.isRoomOrganizer && !mp.hasBeenRegisteredInRoom) {
+                    statusBox.className = 'rounded-xl p-3 text-xs font-semibold text-center border bg-rose-950/60 border-rose-500/40 text-rose-300';
+                    statusBox.textContent = '⚠️ Network connection issue. Retrying...';
+                    statusBox.classList.remove('hidden');
+                }
+            });
+        }
+
+        function mpPublish(payload) {
+            if (!mp.client || !mp.connected || !mp.roomCode) return;
+            payload.roomCode = mp.roomCode;
+            payload.senderId = mp.myId;
+            mp.client.publish(`monty-hall-room-v1/${mp.roomCode}`, JSON.stringify(payload), { qos: 0 });
+        }
+
+        function mpBroadcastRoomState() {
+            if (!mp.isRoomOrganizer) return;
+            mp.state.seq = (mp.state.seq || 0) + 1;
+            mpPublish({
+                type: 'ROOM_STATE',
+                state: mp.state
+            });
+        }
+
+        function mpStartOrganizerLoops() {
+            if (!mp.isRoomOrganizer) return;
+
+            mp.heartbeatInterval = setInterval(() => {
+                if (!mp.isRoomOrganizer) return;
+                const now = Date.now();
+
+                if (mp.organizerPlays && mp.state.players[mp.myId]) {
+                    mp.state.players[mp.myId].lastSeen = now;
+                }
+
+                // Auto-return completed matches after 4 seconds
+                let changed = false;
+                Object.keys(mp.state.matches).forEach(mId => {
+                    const m = mp.state.matches[mId];
+                    if (m && m.step === 'RESULT' && m.resolvedAt && (now - m.resolvedAt >= 4000)) {
+                        mpConcludeMatchToWaiting(mId);
+                        changed = true;
+                    }
+                });
+
+                // Prune disconnected players (>35s without heartbeat so background tabs stay connected)
+                Object.keys(mp.state.players).forEach(pId => {
+                    if (pId === mp.myId) return;
+                    const p = mp.state.players[pId];
+                    if (p && p.lastSeen && (now - p.lastSeen > 35000)) {
+                        mpRemovePlayerInternal(pId);
+                        changed = true;
+                    }
+                });
+
+                if (mp.state.status === 'PLAYING') {
+                    if (mpPairWaitingPlayers()) changed = true;
+                }
+
+                if (changed) renderMultiplayerView();
+                mpBroadcastRoomState();
+            }, 2000);
+        }
+
+        function mpHandleMessage(msg) {
+            if (mp.isRoomOrganizer) {
+                // Authoritative Room Organizer handles incoming player actions
+                switch (msg.type) {
+                    case 'JOIN_REQ': {
+                        const existing = mp.state.players[msg.senderId];
+                        mp.state.players[msg.senderId] = existing ? {
+                            ...existing,
+                            name: String(msg.playerName || existing.name).slice(0, 16),
+                            lastSeen: Date.now()
+                        } : {
+                            id: msg.senderId,
+                            name: String(msg.playerName || 'Player').slice(0, 16),
+                            score: 0,
+                            wins: 0,
+                            matchesPlayed: 0,
+                            status: 'WAITING',
+                            matchId: null,
+                            lastSeen: Date.now(),
+                            lastPartnerId: null
+                        };
+                        if (mp.state.status === 'PLAYING') {
+                            mpPairWaitingPlayers();
+                        }
+                        mpBroadcastRoomState();
+                        renderMultiplayerView();
+                        break;
+                    }
+                    case 'HEARTBEAT': {
+                        if (mp.state.players[msg.senderId]) {
+                            mp.state.players[msg.senderId].lastSeen = Date.now();
+                        } else if (mp.state.status === 'LOBBY' || mp.state.status === 'PLAYING') {
+                            mp.state.players[msg.senderId] = {
+                                id: msg.senderId,
+                                name: String(msg.playerName || 'Player').slice(0, 16),
+                                score: 0,
+                                wins: 0,
+                                matchesPlayed: 0,
+                                status: 'WAITING',
+                                matchId: null,
+                                lastSeen: Date.now(),
+                                lastPartnerId: null
+                            };
+                            if (mp.state.status === 'PLAYING') mpPairWaitingPlayers();
+                            mpBroadcastRoomState();
+                            renderMultiplayerView();
+                        }
+                        break;
+                    }
+                    case 'PLAYER_LEAVE': {
+                        mpRemovePlayerInternal(msg.senderId);
+                        mpBroadcastRoomState();
+                        renderMultiplayerView();
+                        break;
+                    }
+                    case 'MATCH_HIDE_CAR': {
+                        mpApplyHideCar(msg.matchId, msg.senderId, msg.carDoor);
+                        break;
+                    }
+                    case 'MATCH_PICK_DOOR': {
+                        mpApplyInitialPick(msg.matchId, msg.senderId, msg.initialPick);
+                        break;
+                    }
+                    case 'MATCH_OPEN_GOAT': {
+                        mpApplyOpenGoat(msg.matchId, msg.senderId, msg.hostDoor);
+                        break;
+                    }
+                    case 'MATCH_DECIDE': {
+                        mpApplyContestantDecision(msg.matchId, msg.senderId, msg.action);
+                        break;
+                    }
+                    case 'MATCH_RETURN_REQ': {
+                        const m = mp.state.matches[msg.matchId];
+                        if (m && m.step === 'RESULT' && (msg.senderId === m.hostId || msg.senderId === m.contestantId)) {
+                            mpConcludeMatchToWaiting(msg.matchId);
+                            mpPairWaitingPlayers();
+                            mpBroadcastRoomState();
+                            renderMultiplayerView();
+                        }
+                        break;
+                    }
+                }
+            } else {
+                // Joining Player handles authoritative updates from Room Organizer
+                if (msg.type === 'PLAYER_KICKED' && msg.targetId === mp.myId) {
+                    mpCleanupConnection();
+                    mp.roomCode = null;
+                    mp.state.status = 'NONE';
+                    renderMultiplayerView();
+                    alert('You were removed from the room by the host.');
+                    return;
+                }
+
+                if (msg.type === 'ROOM_STATE' && msg.state) {
+                    const incomingSeq = msg.state.seq || 0;
+                    if (incomingSeq < mp.lastReceivedSeq) {
+                        return; // Ignore out-of-order stale state packet
+                    }
+                    mp.lastReceivedSeq = incomingSeq;
+
+                    const isListedInRoom = !!(msg.state.players && msg.state.players[mp.myId]);
+
+                    if (!isListedInRoom) {
+                        if (!mp.hasBeenRegisteredInRoom) {
+                            // Host hasn't processed our JOIN_REQ yet; re-send JOIN_REQ if needed and keep waiting
+                            if (Date.now() - mp.lastJoinReqSentAt > 1200) {
+                                mpSendJoinRequest();
+                            }
+                            return;
+                        } else if (msg.state.status !== 'NONE') {
+                            // We were previously registered, so we were genuinely disconnected/removed
+                            mpCleanupConnection();
+                            mp.roomCode = null;
+                            mp.state.status = 'NONE';
+                            renderMultiplayerView();
+                            alert('You were disconnected or removed from the room.');
+                            return;
+                        }
+                    }
+
+                    // Successfully registered in the room!
+                    mp.hasBeenRegisteredInRoom = true;
+                    clearTimeout(mp.joinTimeout);
+                    document.getElementById('mp-join-status').classList.add('hidden');
+
+                    const wasEnded = mp.state.status === 'ENDED';
+                    mp.state = msg.state;
+
+                    if (!wasEnded && mp.state.status === 'ENDED') {
+                        playSound('win');
+                        triggerConfetti();
+                    }
+
+                    renderMultiplayerView();
+                }
+            }
+        }
+
+        function mpRemovePlayerInternal(playerId) {
+            const player = mp.state.players[playerId];
+            if (!player) return;
+
+            if (player.matchId && mp.state.matches[player.matchId]) {
+                const m = mp.state.matches[player.matchId];
+                const partnerId = (m.hostId === playerId) ? m.contestantId : m.hostId;
+                if (mp.state.players[partnerId]) {
+                    mp.state.players[partnerId].status = 'WAITING';
+                    mp.state.players[partnerId].matchId = null;
+                }
+                delete mp.state.matches[player.matchId];
+            }
+
+            delete mp.state.players[playerId];
+            if (mp.state.status === 'PLAYING') {
+                mpPairWaitingPlayers();
+            }
+        }
+
+        function mpKickPlayer(playerId) {
+            if (!mp.isRoomOrganizer || playerId === mp.myId) return;
+            mpPublish({ type: 'PLAYER_KICKED', targetId: playerId });
+            mpRemovePlayerInternal(playerId);
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        /* ====================================================================
+           MULTIPLAYER SESSION START, PAIRING & MATCH PROGRESSION
+           ==================================================================== */
+        function mpStartSession() {
+            if (!mp.isRoomOrganizer) return;
+            const playerIds = Object.keys(mp.state.players);
+            if (playerIds.length < 2) {
+                alert('At least 2 players are needed in the waiting room to start pairing!');
+                return;
+            }
+
+            mp.state.status = 'PLAYING';
+            mp.state.remainingSec = mp.state.totalDurationSec;
+            mp.state.totalMatchesPlayed = 0;
+            mp.state.matches = {};
+
+            playerIds.forEach(id => {
+                mp.state.players[id].score = 0;
+                mp.state.players[id].wins = 0;
+                mp.state.players[id].matchesPlayed = 0;
+                mp.state.players[id].status = 'WAITING';
+                mp.state.players[id].matchId = null;
+                mp.state.players[id].lastPartnerId = null;
+            });
+
+            mpPairWaitingPlayers();
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+
+            clearInterval(mp.sessionTickInterval);
+            mp.sessionTickInterval = setInterval(() => {
+                if (!mp.isRoomOrganizer || mp.state.status !== 'PLAYING') return;
+                mp.state.remainingSec--;
+                if (mp.state.remainingSec <= 0) {
+                    mp.state.remainingSec = 0;
+                    mpEndSession();
+                } else {
+                    mpUpdateTimerDisplays();
+                    mpBroadcastRoomState();
+                }
+            }, 1000);
+        }
+
+        function mpForceEndSession() {
+            if (!mp.isRoomOrganizer) return;
+            mpEndSession();
+        }
+
+        function mpEndSession() {
+            if (!mp.isRoomOrganizer) return;
+            clearInterval(mp.sessionTickInterval);
+            mp.sessionTickInterval = null;
+
+            mp.state.status = 'ENDED';
+            mp.state.matches = {};
+            Object.keys(mp.state.players).forEach(id => {
+                mp.state.players[id].status = 'WAITING';
+                mp.state.players[id].matchId = null;
+            });
+
+            playSound('win');
+            triggerConfetti();
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        function mpResetToLobby() {
+            if (!mp.isRoomOrganizer) return;
+            clearInterval(mp.sessionTickInterval);
+            mp.sessionTickInterval = null;
+
+            mp.state.status = 'LOBBY';
+            mp.state.remainingSec = mp.state.totalDurationSec;
+            mp.state.totalMatchesPlayed = 0;
+            mp.state.matches = {};
+            Object.keys(mp.state.players).forEach(id => {
+                mp.state.players[id].score = 0;
+                mp.state.players[id].wins = 0;
+                mp.state.players[id].matchesPlayed = 0;
+                mp.state.players[id].status = 'WAITING';
+                mp.state.players[id].matchId = null;
+                mp.state.players[id].lastPartnerId = null;
+            });
+
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        function mpPairWaitingPlayers() {
+            if (!mp.isRoomOrganizer || mp.state.status !== 'PLAYING') return false;
+
+            const waiting = Object.values(mp.state.players).filter(p => p.status === 'WAITING');
+            if (waiting.length < 2) return false;
+
+            for (let i = waiting.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [waiting[i], waiting[j]] = [waiting[j], waiting[i]];
+            }
+
+            let pairedAny = false;
+            const used = new Set();
+
+            for (let i = 0; i < waiting.length; i++) {
+                const p1 = waiting[i];
+                if (used.has(p1.id)) continue;
+
+                let partnerIdx = -1;
+                for (let j = i + 1; j < waiting.length; j++) {
+                    if (!used.has(waiting[j].id) && waiting[j].id !== p1.lastPartnerId) {
+                        partnerIdx = j;
+                        break;
+                    }
+                }
+                if (partnerIdx === -1) {
+                    for (let j = i + 1; j < waiting.length; j++) {
+                        if (!used.has(waiting[j].id)) {
+                            partnerIdx = j;
+                            break;
+                        }
+                    }
+                }
+
+                if (partnerIdx !== -1) {
+                    const p2 = waiting[partnerIdx];
+                    used.add(p1.id);
+                    used.add(p2.id);
+
+                    const p1IsHost = Math.random() < 0.5;
+                    const hostPlayer = p1IsHost ? p1 : p2;
+                    const contestantPlayer = p1IsHost ? p2 : p1;
+
+                    const matchId = 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+                    mp.state.matches[matchId] = {
+                        id: matchId,
+                        hostId: hostPlayer.id,
+                        hostName: hostPlayer.name,
+                        contestantId: contestantPlayer.id,
+                        contestantName: contestantPlayer.name,
+                        step: 'HIDE_CAR',
+                        carDoor: null,
+                        initialPick: null,
+                        hostDoor: null,
+                        finalAction: null,
+                        finalPick: null,
+                        isWin: null,
+                        pointWinnerId: null,
+                        resolvedAt: null
+                    };
+
+                    hostPlayer.status = 'IN_MATCH';
+                    hostPlayer.matchId = matchId;
+                    hostPlayer.lastPartnerId = contestantPlayer.id;
+
+                    contestantPlayer.status = 'IN_MATCH';
+                    contestantPlayer.matchId = matchId;
+                    contestantPlayer.lastPartnerId = hostPlayer.id;
+
+                    pairedAny = true;
+                }
+            }
+
+            return pairedAny;
+        }
+
+        function mpConcludeMatchToWaiting(matchId) {
+            const m = mp.state.matches[matchId];
+            if (!m) return;
+
+            if (mp.state.players[m.hostId]) {
+                mp.state.players[m.hostId].status = 'WAITING';
+                mp.state.players[m.hostId].matchId = null;
+            }
+            if (mp.state.players[m.contestantId]) {
+                mp.state.players[m.contestantId].status = 'WAITING';
+                mp.state.players[m.contestantId].matchId = null;
+            }
+            delete mp.state.matches[matchId];
+        }
+
+        /* Match Step Transitions */
+        function mpApplyHideCar(matchId, actorId, carDoor) {
+            const m = mp.state.matches[matchId];
+            if (!m || m.step !== 'HIDE_CAR' || m.hostId !== actorId) return;
+            if (![1, 2, 3].includes(carDoor)) return;
+
+            m.carDoor = carDoor;
+            m.step = 'CONTESTANT_PICK';
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        function mpApplyInitialPick(matchId, actorId, doorNum) {
+            const m = mp.state.matches[matchId];
+            if (!m || m.step !== 'CONTESTANT_PICK' || m.contestantId !== actorId) return;
+            if (![1, 2, 3].includes(doorNum)) return;
+
+            m.initialPick = doorNum;
+            m.step = 'HOST_OPEN_GOAT';
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        function mpApplyOpenGoat(matchId, actorId, doorNum) {
+            const m = mp.state.matches[matchId];
+            if (!m || m.step !== 'HOST_OPEN_GOAT' || m.hostId !== actorId) return;
+            if (![1, 2, 3].includes(doorNum)) return;
+            if (doorNum === m.initialPick || doorNum === m.carDoor) return;
+
+            m.hostDoor = doorNum;
+            m.step = 'CONTESTANT_DECIDE';
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        function mpApplyContestantDecision(matchId, actorId, action) {
+            const m = mp.state.matches[matchId];
+            if (!m || m.step !== 'CONTESTANT_DECIDE' || m.contestantId !== actorId) return;
+            if (action !== 'STICK' && action !== 'SWITCH') return;
+
+            const switchDoor = [1, 2, 3].find(d => d !== m.initialPick && d !== m.hostDoor);
+            const finalPick = (action === 'STICK') ? m.initialPick : switchDoor;
+            const isWin = (finalPick === m.carDoor);
+
+            m.finalAction = action;
+            m.finalPick = finalPick;
+            m.isWin = isWin;
+            m.step = 'RESULT';
+            m.resolvedAt = Date.now();
+            m.pointWinnerId = isWin ? m.contestantId : m.hostId;
+
+            if (mp.state.players[m.contestantId]) {
+                mp.state.players[m.contestantId].matchesPlayed++;
+                if (isWin) {
+                    mp.state.players[m.contestantId].score += 1;
+                    mp.state.players[m.contestantId].wins += 1;
+                }
+            }
+            if (mp.state.players[m.hostId]) {
+                mp.state.players[m.hostId].matchesPlayed++;
+                if (!isWin) {
+                    mp.state.players[m.hostId].score += 1;
+                    mp.state.players[m.hostId].wins += 1;
+                }
+            }
+
+            mp.state.totalMatchesPlayed++;
+
+            gameState.history.unshift({
+                round: gameState.roundNumber++,
+                mode: 'MP',
+                initialPick: `Door ${m.initialPick}`,
+                hostOpened: `Door ${m.hostDoor}`,
+                action: action,
+                finalPick: `Door ${finalPick}`,
+                carDoor: `Door ${m.carDoor}`,
+                outcome: isWin ? 'WIN (Car)' : 'LOSS (Goat)',
+                isWin: isWin
+            });
+            renderHistoryTable();
+            renderStats();
+            updateChart();
+
+            mpBroadcastRoomState();
+            renderMultiplayerView();
+        }
+
+        /* User Input Handlers on Multiplayer Doors & Controls */
+        function mpGetMyActiveMatch() {
+            const me = mp.state.players[mp.myId];
+            if (!me || me.status !== 'IN_MATCH' || !me.matchId) return null;
+            return mp.state.matches[me.matchId] || null;
+        }
+
+        function mpHandleDoorClick(doorNum) {
+            const m = mpGetMyActiveMatch();
+            if (!m) return;
+
+            const amIHost = (m.hostId === mp.myId);
+            const amIContestant = (m.contestantId === mp.myId);
+
+            if (amIHost && m.step === 'HIDE_CAR') {
+                playSound('click');
+                if (mp.isRoomOrganizer) {
+                    mpApplyHideCar(m.id, mp.myId, doorNum);
+                } else {
+                    mpPublish({ type: 'MATCH_HIDE_CAR', matchId: m.id, carDoor: doorNum });
+                }
+            } else if (amIContestant && m.step === 'CONTESTANT_PICK') {
+                playSound('click');
+                if (mp.isRoomOrganizer) {
+                    mpApplyInitialPick(m.id, mp.myId, doorNum);
+                } else {
+                    mpPublish({ type: 'MATCH_PICK_DOOR', matchId: m.id, initialPick: doorNum });
+                }
+            } else if (amIHost && m.step === 'HOST_OPEN_GOAT') {
+                if (doorNum === m.initialPick) {
+                    alert(`⚠️ You cannot open Door ${doorNum} because the Contestant picked it!`);
+                    return;
+                }
+                if (doorNum === m.carDoor) {
+                    alert(`⚠️ You cannot open Door ${doorNum} because you hid the Sports Car there!`);
+                    return;
+                }
+                playSound('open');
+                if (mp.isRoomOrganizer) {
+                    mpApplyOpenGoat(m.id, mp.myId, doorNum);
+                } else {
+                    mpPublish({ type: 'MATCH_OPEN_GOAT', matchId: m.id, hostDoor: doorNum });
+                }
+            } else if (amIContestant && m.step === 'CONTESTANT_DECIDE') {
+                const switchDoor = [1, 2, 3].find(d => d !== m.initialPick && d !== m.hostDoor);
+                if (doorNum === m.initialPick) {
+                    mpContestantDecide('STICK');
+                } else if (doorNum === switchDoor) {
+                    mpContestantDecide('SWITCH');
+                }
+            }
+        }
+
+        function mpContestantDecide(action) {
+            const m = mpGetMyActiveMatch();
+            if (!m || m.contestantId !== mp.myId || m.step !== 'CONTESTANT_DECIDE') return;
+            playSound('click');
+            if (mp.isRoomOrganizer) {
+                mpApplyContestantDecision(m.id, mp.myId, action);
+            } else {
+                mpPublish({ type: 'MATCH_DECIDE', matchId: m.id, action: action });
+            }
+        }
+
+        function mpReturnToWaitingRoom() {
+            const m = mpGetMyActiveMatch();
+            if (!m || m.step !== 'RESULT') return;
+            playSound('click');
+            if (mp.isRoomOrganizer) {
+                mpConcludeMatchToWaiting(m.id);
+                mpPairWaitingPlayers();
+                mpBroadcastRoomState();
+                renderMultiplayerView();
+            } else {
+                mpPublish({ type: 'MATCH_RETURN_REQ', matchId: m.id });
+            }
+        }
+
+        /* ====================================================================
+           MULTIPLAYER UI RENDERER
+           ==================================================================== */
+        function mpUpdateTimerDisplays() {
+            const formatted = formatSecondsMMSS(mp.state.remainingSec);
+            const waitTimer = document.getElementById('mp-wait-timer');
+            const matchTimer = document.getElementById('mp-match-timer');
+            if (waitTimer) waitTimer.textContent = formatted;
+            if (matchTimer) matchTimer.textContent = formatted;
+        }
+
+        function mpGetSortedLeaderboard() {
+            return Object.values(mp.state.players).sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                if (b.wins !== a.wins) return b.wins - a.wins;
+                return a.name.localeCompare(b.name);
+            });
+        }
+
+        function renderMultiplayerView() {
+            const screens = [
+                'mp-setup-screen',
+                'mp-lobby-screen',
+                'mp-waiting-screen',
+                'mp-match-screen',
+                'mp-podium-screen'
+            ];
+            screens.forEach(id => document.getElementById(id).classList.add('hidden'));
+
+            const status = mp.state.status;
+
+            if (status === 'NONE' || status === 'CONNECTING') {
+                document.getElementById('mp-setup-screen').classList.remove('hidden');
+                return;
+            }
+
+            if (status === 'LOBBY') {
+                document.getElementById('mp-lobby-screen').classList.remove('hidden');
+                document.getElementById('mp-lobby-code').textContent = mp.roomCode || '----';
+                document.getElementById('mp-lobby-link').textContent = mpGetShareLink();
+                document.getElementById('mp-lobby-duration-badge').textContent = formatSecondsMMSS(mp.state.totalDurationSec);
+
+                const players = Object.values(mp.state.players);
+                document.getElementById('mp-lobby-player-count').textContent = players.length;
+
+                const grid = document.getElementById('mp-lobby-players-grid');
+                if (players.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center text-xs text-slate-500 py-4 italic">Waiting for players to join using code ${esc(mp.roomCode)}...</div>`;
+                } else {
+                    grid.innerHTML = players.map(p => {
+                        const isMe = (p.id === mp.myId);
+                        const canKick = mp.isRoomOrganizer && !isMe;
+                        return `
+                            <div class="bg-slate-950 border ${isMe ? 'border-amber-500/50' : 'border-slate-800'} rounded-xl p-3 flex items-center justify-between gap-2">
+                                <div class="flex items-center space-x-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-black text-xs text-white shrink-0">
+                                        ${esc(p.name.charAt(0).toUpperCase())}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-white truncate">${esc(p.name)}${isMe ? ' (You)' : ''}</div>
+                                        <div class="text-[10px] text-emerald-400">● Ready</div>
+                                    </div>
+                                </div>
+                                ${canKick ? `<button onclick="mpKickPlayer('${esc(p.id)}')" class="text-rose-400 hover:text-rose-300 text-xs px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/30" title="Remove player">✕</button>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                document.getElementById('mp-lobby-host-controls').classList.toggle('hidden', !mp.isRoomOrganizer);
+                document.getElementById('mp-lobby-guest-notice').classList.toggle('hidden', mp.isRoomOrganizer);
+                const startBtn = document.getElementById('mp-start-session-btn');
+                if (startBtn) {
+                    startBtn.disabled = players.length < 2;
+                    startBtn.classList.toggle('opacity-50', players.length < 2);
+                }
+                return;
+            }
+
+            if (status === 'PLAYING') {
+                mpUpdateTimerDisplays();
+                const myMatch = mpGetMyActiveMatch();
+
+                if (myMatch) {
+                    renderMultiplayerMatchScreen(myMatch);
+                } else {
+                    renderMultiplayerWaitingScreen();
+                }
+                return;
+            }
+
+            if (status === 'ENDED') {
+                renderMultiplayerPodiumScreen();
+            }
+        }
+
+        function renderMultiplayerWaitingScreen() {
+            document.getElementById('mp-waiting-screen').classList.remove('hidden');
+            document.getElementById('mp-wait-code').textContent = mp.roomCode || '----';
+
+            const me = mp.state.players[mp.myId];
+            document.getElementById('mp-wait-my-score').textContent = me ? me.score : '0';
+            document.getElementById('mp-end-now-btn').classList.toggle('hidden', !mp.isRoomOrganizer);
+
+            const waitingPlayers = Object.values(mp.state.players).filter(p => p.status === 'WAITING');
+            const titleEl = document.getElementById('mp-wait-status-title');
+            const descEl = document.getElementById('mp-wait-status-desc');
+
+            if (!me && mp.isRoomOrganizer && !mp.organizerPlays) {
+                titleEl.textContent = 'Organizer Spectator View';
+                descEl.textContent = 'You are organizing this room while players pair up and compete live below.';
+            } else if (waitingPlayers.length === 1) {
+                titleEl.textContent = 'You are next in line! ⏳';
+                descEl.textContent = 'There is currently an odd number of players in the room. You will be paired automatically the moment the next match finishes!';
+            } else {
+                titleEl.textContent = 'Pairing players in the waiting room...';
+                descEl.textContent = 'You will be paired with an opponent and randomly assigned as Game Show Host or Contestant!';
+            }
+
+            const activeMatches = Object.values(mp.state.matches);
+            document.getElementById('mp-active-matches-count').textContent = activeMatches.length;
+            const matchesList = document.getElementById('mp-active-matches-list');
+
+            if (activeMatches.length === 0) {
+                matchesList.innerHTML = '<p class="text-slate-500 italic">No active matches at this exact second.</p>';
+            } else {
+                const stepLabels = {
+                    HIDE_CAR: 'Host hiding car...',
+                    CONTESTANT_PICK: 'Contestant picking door...',
+                    HOST_OPEN_GOAT: 'Host revealing goat...',
+                    CONTESTANT_DECIDE: 'Stick or Switch decision...',
+                    RESULT: 'Round complete!'
+                };
+                matchesList.innerHTML = activeMatches.map(m => `
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2">
+                        <div>
+                            <span class="text-amber-300 font-bold">🎙️ ${esc(m.hostName)}</span>
+                            <span class="text-slate-500 mx-1.5">vs</span>
+                            <span class="text-emerald-300 font-bold">🧍 ${esc(m.contestantName)}</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-300 font-medium">
+                            ${stepLabels[m.step] || m.step}
+                        </span>
+                    </div>
+                `).join('');
+            }
+
+            const leaderboard = mpGetSortedLeaderboard();
+            const lbContainer = document.getElementById('mp-wait-leaderboard');
+            lbContainer.innerHTML = leaderboard.map((p, idx) => {
+                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+                const isMe = (p.id === mp.myId);
+                return `
+                    <div class="bg-slate-950/90 border ${isMe ? 'border-amber-500/40' : 'border-slate-800'} rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+                        <div class="flex items-center space-x-2 min-w-0">
+                            <span class="font-bold w-6 text-center shrink-0">${medal}</span>
+                            <span class="font-bold text-white truncate">${esc(p.name)}${isMe ? ' (You)' : ''}</span>
+                        </div>
+                        <span class="title-font font-black text-amber-400 text-sm shrink-0">${p.score} pt${p.score === 1 ? '' : 's'}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMultiplayerMatchScreen(m) {
+            document.getElementById('mp-match-screen').classList.remove('hidden');
+
+            const amIHost = (m.hostId === mp.myId);
+            const me = mp.state.players[mp.myId];
+            document.getElementById('mp-match-my-score').textContent = me ? me.score : '0';
+
+            document.getElementById('mp-match-host-name').textContent = m.hostName + (amIHost ? ' (You)' : '');
+            document.getElementById('mp-match-contestant-name').textContent = m.contestantName + (!amIHost ? ' (You)' : '');
+
+            const roleBadge = document.getElementById('mp-role-badge');
+            if (amIHost) {
+                roleBadge.className = 'px-3.5 py-2 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider border shadow bg-amber-500/20 border-amber-500/50 text-amber-300';
+                roleBadge.textContent = '🎙️ GAME SHOW HOST';
+            } else {
+                roleBadge.className = 'px-3.5 py-2 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider border shadow bg-emerald-500/20 border-emerald-500/50 text-emerald-300';
+                roleBadge.textContent = '🧍 CONTESTANT';
+            }
+
+            const stepKey = `${m.id}_${m.step}`;
+            if (mp.lastRenderedMatchStepKey !== stepKey) {
+                mp.lastRenderedMatchStepKey = stepKey;
+                if (m.step === 'HOST_OPEN_GOAT' || m.step === 'CONTESTANT_DECIDE') {
+                    playSound('open');
+                } else if (m.step === 'RESULT') {
+                    const iScored = (m.pointWinnerId === mp.myId);
+                    if (iScored) {
+                        playSound('win');
+                        triggerConfetti();
+                    } else {
+                        playSound('lose');
+                    }
+                }
+            }
+
+            for (let i = 1; i <= 3; i++) {
+                const panel = document.getElementById(`mp-door-panel-${i}`);
+                const card = document.getElementById(`mp-door-card-${i}`);
+                const carTag = document.getElementById(`mp-door-car-tag-${i}`);
+                const pickTag = document.getElementById(`mp-door-pick-tag-${i}`);
+
+                panel.classList.remove('is-selected', 'is-car-secret');
+                card.classList.remove('pointer-events-none', 'opacity-85');
+                carTag.classList.add('hidden');
+                pickTag.classList.add('hidden');
+
+                if (amIHost && m.carDoor === i && m.step !== 'RESULT') {
+                    carTag.classList.remove('hidden');
+                    panel.classList.add('is-car-secret');
+                }
+
+                const activePick = (m.step === 'RESULT') ? m.finalPick : m.initialPick;
+                if (activePick === i) {
+                    pickTag.classList.remove('hidden');
+                    pickTag.textContent = (m.step === 'RESULT') ? 'FINAL PICK' : 'PICKED';
+                    panel.classList.add('is-selected');
+                }
+
+                if (m.step === 'RESULT') {
+                    if (i === m.finalPick || i === m.hostDoor || i === m.carDoor) {
+                        setDoorVisual(i, i === m.carDoor ? 'CAR' : 'GOAT', 'mp-');
+                    } else {
+                        setDoorVisual(i, 'CLOSED', 'mp-');
+                    }
+                } else if (m.hostDoor === i) {
+                    setDoorVisual(i, 'GOAT', 'mp-');
+                    card.classList.add('pointer-events-none', 'opacity-85');
+                } else {
+                    setDoorVisual(i, 'CLOSED', 'mp-');
+                }
+            }
+
+            const stepBadge = document.getElementById('mp-match-step-badge');
+            const promptEl = document.getElementById('mp-match-prompt');
+            const promptIcon = document.getElementById('mp-prompt-icon');
+            const decisionControls = document.getElementById('mp-contestant-decision-controls');
+            const resultControls = document.getElementById('mp-match-result-controls');
+
+            decisionControls.classList.add('hidden');
+            resultControls.classList.add('hidden');
+
+            if (m.step === 'HIDE_CAR') {
+                stepBadge.textContent = 'STEP 1 OF 4: HIDE THE CAR';
+                if (amIHost) {
+                    promptIcon.textContent = '🚗';
+                    promptEl.innerHTML = `Your turn, <span class="text-amber-400">Game Show Host</span>! Click one of the 3 doors to secretly hide the Sports Car.`;
+                } else {
+                    promptIcon.textContent = '⏳';
+                    promptEl.innerHTML = `Waiting for <span class="text-amber-400">${esc(m.hostName)}</span> (Game Show Host) to hide the Sports Car behind a door...`;
+                }
+            } else if (m.step === 'CONTESTANT_PICK') {
+                stepBadge.textContent = 'STEP 2 OF 4: CONTESTANT PICKS A DOOR';
+                if (!amIHost) {
+                    promptIcon.textContent = '👇';
+                    promptEl.innerHTML = `The car is hidden! Click any door to make your initial selection.`;
+                } else {
+                    promptIcon.textContent = '⏳';
+                    promptEl.innerHTML = `Car hidden behind <span class="text-emerald-400">Door ${m.carDoor}</span>! Waiting for <span class="text-emerald-300">${esc(m.contestantName)}</span> to pick a door...`;
+                }
+            } else if (m.step === 'HOST_OPEN_GOAT') {
+                stepBadge.textContent = 'STEP 3 OF 4: HOST REVEALS A GOAT';
+                if (amIHost) {
+                    promptIcon.textContent = '🐐';
+                    promptEl.innerHTML = `${esc(m.contestantName)} picked <span class="text-amber-400">Door ${m.initialPick}</span>! Now click an unopened door with a <strong>Goat</strong> to reveal it.`;
+                } else {
+                    promptIcon.textContent = '⏳';
+                    promptEl.innerHTML = `You picked <span class="text-amber-400">Door ${m.initialPick}</span>. Waiting for <span class="text-amber-300">${esc(m.hostName)}</span> to open a Goat door...`;
+                }
+            } else if (m.step === 'CONTESTANT_DECIDE') {
+                stepBadge.textContent = 'STEP 4 OF 4: STICK OR SWITCH';
+                const switchDoor = [1, 2, 3].find(d => d !== m.initialPick && d !== m.hostDoor);
+                if (!amIHost) {
+                    promptIcon.textContent = '🤔';
+                    promptEl.innerHTML = `${esc(m.hostName)} opened <span class="text-amber-400">Door ${m.hostDoor}</span> (Goat)! Do you want to <span class="text-blue-400">STICK</span> with Door ${m.initialPick} or <span class="text-emerald-400">SWITCH</span> to Door ${switchDoor}?`;
+                    document.getElementById('mp-stick-door-num').textContent = m.initialPick;
+                    document.getElementById('mp-switch-door-num').textContent = switchDoor;
+                    decisionControls.classList.remove('hidden');
+                } else {
+                    promptIcon.textContent = '⏳';
+                    promptEl.innerHTML = `You revealed the Goat behind Door ${m.hostDoor}! Waiting for <span class="text-emerald-300">${esc(m.contestantName)}</span> to Stick or Switch...`;
+                }
+            } else if (m.step === 'RESULT') {
+                stepBadge.textContent = 'MATCH COMPLETE';
+                resultControls.classList.remove('hidden');
+                if (m.isWin) {
+                    promptIcon.textContent = '🎉';
+                    promptEl.innerHTML = `<span class="text-emerald-400">${esc(m.contestantName)}</span> ${m.finalAction === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${m.finalPick} and won the <span class="text-amber-400">Sports Car! (+1 Point to ${esc(m.contestantName)})</span>`;
+                } else {
+                    promptIcon.textContent = '🐐';
+                    promptEl.innerHTML = `<span class="text-rose-400">${esc(m.contestantName)}</span> ${m.finalAction === 'SWITCH' ? 'SWITCHED' : 'STUCK'} to Door ${m.finalPick} and got a Goat! <span class="text-amber-400">(+1 Point to ${esc(m.hostName)})</span>`;
+                }
+            }
+        }
+
+        function renderMultiplayerPodiumScreen() {
+            document.getElementById('mp-podium-screen').classList.remove('hidden');
+            const leaderboard = mpGetSortedLeaderboard();
+            document.getElementById('mp-final-total-matches').textContent = `${mp.state.totalMatchesPlayed || 0} Total Matches`;
+
+            const podiumContainer = document.getElementById('mp-podium-cards');
+            const subtitle = document.getElementById('mp-podium-subtitle');
+
+            if (leaderboard.length === 0) {
+                podiumContainer.innerHTML = '';
+                subtitle.textContent = 'Session completed!';
+            } else {
+                const first = leaderboard[0];
+                const second = leaderboard[1] || null;
+                const third = leaderboard[2] || null;
+
+                subtitle.innerHTML = `🏆 Winner: <strong class="text-amber-400">${esc(first.name)}</strong> with <strong>${first.score} point${first.score === 1 ? '' : 's'}</strong>!`;
+
+                const slots = [];
+                if (second) slots.push({ place: 2, medal: '🥈', label: '2nd Place', player: second, heightClass: 'sm:h-44', borderClass: 'border-slate-400/50 bg-slate-900/95', titleColor: 'text-slate-200' });
+                slots.push({ place: 1, medal: '🥇', label: '1st Place — Winner', player: first, heightClass: 'sm:h-52', borderClass: 'border-amber-400 bg-gradient-to-b from-amber-500/20 to-slate-900 shadow-xl shadow-amber-500/20', titleColor: 'text-amber-300' });
+                if (third) slots.push({ place: 3, medal: '🥉', label: '3rd Place', player: third, heightClass: 'sm:h-40', borderClass: 'border-amber-700/60 bg-slate-900/95', titleColor: 'text-amber-500' });
+
+                podiumContainer.innerHTML = slots.map(s => `
+                    <div class="rounded-2xl border-2 ${s.borderClass} p-4 flex flex-col items-center justify-center space-y-1.5 ${s.heightClass}">
+                        <div class="text-3xl sm:text-4xl">${s.medal}</div>
+                        <div class="text-[11px] font-black uppercase tracking-wider ${s.titleColor}">${s.label}</div>
+                        <div class="title-font text-lg sm:text-xl font-black text-white truncate max-w-full">${esc(s.player.name)}</div>
+                        <div class="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-xs font-extrabold text-amber-400">
+                            ${s.player.score} Point${s.player.score === 1 ? '' : 's'}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const standingsList = document.getElementById('mp-final-standings-list');
+            standingsList.innerHTML = leaderboard.map((p, idx) => {
+                const rankBadge = idx === 0 ? '🥇 1st' : idx === 1 ? '🥈 2nd' : idx === 2 ? '🥉 3rd' : `#${idx + 1}`;
+                const isMe = (p.id === mp.myId);
+                return `
+                    <div class="px-4 py-3 flex items-center justify-between text-xs ${isMe ? 'bg-amber-500/10' : ''}">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <span class="font-black text-slate-300 w-12 shrink-0">${rankBadge}</span>
+                            <span class="font-bold text-white truncate">${esc(p.name)}${isMe ? ' (You)' : ''}</span>
+                        </div>
+                        <div class="flex items-center space-x-4 shrink-0">
+                            <span class="text-slate-400">${p.wins}W / ${p.matchesPlayed}M</span>
+                            <span class="title-font font-black text-sm text-amber-400">${p.score} pts</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('mp-play-again-btn').classList.toggle('hidden', !mp.isRoomOrganizer);
+        }
+
+        function mpCopyCode() {
+            if (!mp.roomCode) return;
+            copyTextWithFeedback(mp.roomCode, 'mp-copy-code-btn', '📋 Copy Code');
+        }
+
+        function mpCopyLink() {
+            if (!mp.roomCode) return;
+            copyTextWithFeedback(mpGetShareLink(), 'mp-copy-link-btn', '🔗 Copy Share Link');
+        }
+
+        function copyTextWithFeedback(text, btnId, defaultHtml) {
+            const btn = document.getElementById(btnId);
+            const done = () => {
+                if (!btn) return;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => { btn.innerHTML = defaultHtml; }, 1600);
+            };
+            const fallback = () => {
+                const tmp = document.createElement('input');
+                tmp.value = text;
+                document.body.appendChild(tmp);
+                tmp.select();
+                try { document.execCommand('copy'); done(); } catch (e) { alert(text); }
+                document.body.removeChild(tmp);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(done, fallback);
+            } else {
+                fallback();
+            }
         }
 
         /* ====================================================================
@@ -1538,6 +3012,7 @@
         function resizeCanvas() {
             if (!canvas) return;
             const rect = canvas.parentElement.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
             canvas.width = rect.width;
             canvas.height = rect.height;
             updateChart();
